@@ -5,21 +5,23 @@ import MiniMe from "./components/MiniMe";
 import Hero from "./components/Hero";
 import Founders from "./components/Founders";
 import Earth from "./components/Earth";
+import HeroBackdrop from "./components/HeroBackdrop";
 export default function App() {
   return (
-    <div className="min-h-screen bg-[#04060e] text-slate-100">
-      {/* Top Navigation Bar */}
-      <Navbar />
+    <div className="site-shell min-h-screen bg-[#04060e] text-slate-100">
+      <HeroBackdrop className="site-backdrop" />
 
-      {/* Hero Section */}
-      <main>
-        <Hero />
-        {/* Global Routing / Earth */}
-        <Earth />
-        <BuildNext />
-        <MiniMe />
-        <Founders />
-      </main>
+      <div className="site-content">
+        <Navbar />
+
+        <main>
+          <Hero />
+          <Earth />
+          <BuildNext />
+          <MiniMe />
+          <Founders />
+        </main>
+      </div>
     </div>
   );
 }
