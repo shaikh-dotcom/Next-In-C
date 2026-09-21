@@ -50,26 +50,23 @@ const GLOWS = [
 --------------------------------------------------------- */
 const THEME = {
   // Neutral dark glass that works on pure black
-  glassTint: "#dfe7f2",
-  glassDepth: "#6f7f95",
+  glassTint: "#f2dfe4",
+  glassDepth: "#680a22",
   depthDistance: 5,
 
-  // Very dark base so the card still feels glassy
-  base: ["#111722", "#030509"],
+  base: ["#0c0306", "#1d080d"],
 
-  // Cool subtle glow
-  glowInner: "90, 125, 180",
-  glowOuter: "38, 62, 110",
+  glowInner: "180, 42, 78",
+  glowOuter: "104, 10, 34",
 
-  // Soft white-blue details
-  dots: "210, 225, 245",
-  halo: "190, 215, 255",
+  dots: "255, 220, 228",
+  halo: "245, 217, 223",
 
   lights: {
     key: "#ffffff",
-    left: "#6ea8ff",
-    right: "#5865f2",
-    ring: "#b9c9ff",
+    left: "#ff6b8f",
+    right: "#680a22",
+    ring: "#ffc2d1",
   },
 };
 
