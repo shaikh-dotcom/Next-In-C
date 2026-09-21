@@ -691,7 +691,11 @@ export default function MiniMeGlass({
   const art = useArt(features);
 
   // WebGL canvas only exists while this section is near the viewport
-  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
+  const { near, epoch, onCreated, ready } = useLazyCanvas(hostRef, {
+    id: "mini-me-glass",
+    rootMargin: "300px 0px",
+    priority: 20,
+  });
 
   const geo = useMemo(
     () => ({
@@ -731,7 +735,7 @@ export default function MiniMeGlass({
   }, []);
 
   return (
-    <div className="mm-glass" ref={hostRef} aria-hidden="true">
+    <div className={`mm-glass${ready ? " is-ready" : ""}`} ref={hostRef} aria-hidden="true">
       {near && (
         <Canvas
           key={epoch}
