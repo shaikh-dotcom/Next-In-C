@@ -1,0 +1,477 @@
+.hero {
+  position: relative;
+  isolation: isolate;
+
+  width: 100%;
+  min-height: calc(100vh - 82px);
+
+  padding: 150px 24px 30px; /* was 90px */
+  box-sizing: border-box;
+
+  display: flex;
+  justify-content: center;
+  text-align: center;
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(circle at 50% 45%, rgba(18, 29, 47, 0.35), transparent 55%),
+    linear-gradient(180deg, #030408 0%, #06070e 50%, #020408 100%);
+}
+
+/* =========================================================
+   BACKDROP
+   One WebGL canvas (HeroBackdrop.jsx): haze, particle streams,
+   the morphing core, orbits, depth-of-field and bloom.
+   The bottom edge fades out so the hero melts into the next
+   section instead of ending on a line.
+   ========================================================= */
+
+.hero-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  pointer-events: none;
+
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 86%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, #000 0, #000 86%, transparent 100%);
+}
+
+.hero-backdrop canvas {
+  display: block !important;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* =========================================================
+   SCRIM + VIGNETTE
+   A soft pool of darkness behind the copy and a gentle
+   vignette. The particles are also dimmed inside the text
+   zone in the shaders (TEXT_CENTER / TEXT_SIZE in
+   HeroBackdrop.jsx), so this only has to be subtle.
+   ========================================================= */
+
+.hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(60% 55% at 50% 48%, rgba(2, 3, 8, 0.4), transparent 75%),
+    radial-gradient(
+      130% 95% at 50% 45%,
+      transparent 55%,
+      rgba(1, 2, 6, 0.72) 100%
+    );
+}
+
+/* Fine film grain: kills gradient banding and adds a printed,
+   tactile quality. Sits under the text, above the canvas. */
+.hero::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+
+  pointer-events: none;
+
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='220'%20height='220'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='.85'%20numOctaves='2'%20stitchTiles='stitch'/%3E%3CfeColorMatrix%20values='0%200%200%200%201%200%200%200%200%201%200%200%200%200%201%200%200%200%20.9%200'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url%28%23n%29'/%3E%3C/svg%3E");
+}
+
+/* =========================================================
+   HERO CONTENT
+   ========================================================= */
+
+.hero-inner {
+  position: relative;
+  z-index: 4;
+
+  width: min(100%, 1120px);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* =========================================================
+   BADGES
+   ========================================================= */
+
+.hero-badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+
+  gap: 10px;
+  margin-bottom: 34px;
+}
+
+.hero-badge {
+  min-height: 30px;
+
+  padding: 6px 12px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: 999px;
+
+  background: rgba(35, 37, 45, 0.72);
+
+  color: #e7c9ca;
+
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+
+  white-space: nowrap;
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.hero-badge-icon {
+  width: 13px;
+  height: 13px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-badge-icon svg {
+  width: 14px;
+  height: 14px;
+
+  stroke-width: 2.2;
+}
+
+.badge-red .hero-badge-icon {
+  color: #dc2347;
+}
+
+.badge-orange .hero-badge-icon {
+  color: #ffac00;
+}
+
+.badge-pink .hero-badge-icon {
+  color: #ff8b96;
+}
+
+.badge-green .hero-badge-icon {
+  color: #14c89d;
+}
+
+/* =========================================================
+   TITLE
+   ========================================================= */
+
+.hero-title {
+  margin: 0;
+
+  color: #ffffff;
+  font-family: "Syne", sans-serif;
+  font-size: clamp(50px, 5.75vw, 88px);
+  font-weight: 900;
+  line-height: 72px;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.hero-title > span {
+  display: block;
+
+  /* 3D edge only on the main title lines */
+  -webkit-text-stroke: 0.7px #071018;
+  paint-order: stroke fill;
+
+  text-shadow:
+    1px 1px 0 #071018,
+    2px 2px 0 #071018,
+    3px 3px 0 #071018,
+    4px 4px 0 rgba(7, 16, 24, 0.9),
+    5px 5px 0 rgba(7, 16, 24, 0.75),
+    6px 6px 0 rgba(7, 16, 24, 0.55),
+    0 0 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Keep THROUGH exactly as the gradient text */
+.hero-gradient-text {
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #f5d9df 45%,
+    #a83b59 75%,
+    #65081f 100%
+  );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+
+  /* Prevent the 3D title styling from affecting the gradient */
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  paint-order: normal;
+}
+/* =========================================================
+   DESCRIPTION
+   ========================================================= */
+
+.hero-description {
+  width: min(100%, 650px);
+  margin: 32px auto 0;
+
+  color: #f4eef0;
+
+  font-family: "Inter", sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.7;
+  letter-spacing: 0;
+
+  text-align: center;
+
+  /* Legibility comes from the calmer backdrop plus a tight, soft
+     shadow, not from outlining every letter. */
+  text-shadow:
+    0 1px 2px rgba(2, 3, 8, 0.9),
+    0 0 26px rgba(2, 3, 8, 0.85);
+}
+
+.hero-description strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* =========================================================
+   TECHNOLOGY HEADING
+   ========================================================= */
+
+.hero-tech-heading {
+  margin-top: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  color: #8fd8ff;
+
+  font-family: "Courier New", Courier, monospace;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 0.9px;
+
+  text-transform: uppercase;
+}
+
+.hero-tech-dot {
+  width: 10px;
+  height: 10px;
+
+  border-radius: 50%;
+
+  background: #68172b;
+
+  box-shadow: 0 0 10px rgba(255, 37, 74, 0.25);
+}
+
+/* =========================================================
+   TECHNOLOGY GLASS CARDS
+   One WebGL canvas (TechGlass.jsx) draws the glass slabs behind
+   this grid; the grid only carries the text.
+   ========================================================= */
+
+.hero-tech-list {
+  width: 100%;
+  margin-top: 30px;
+
+  display: flex;
+  justify-content: center;
+}
+
+.hero-tech-stage {
+  position: relative;
+  flex: none;
+}
+
+/* Warm pool of light so the glass cards sit on something */
+.hero-tech-stage::before {
+  content: "";
+
+  position: absolute;
+  inset: -50px -90px -20px;
+  z-index: 0;
+
+  pointer-events: none;
+
+  background: radial-gradient(
+    ellipse 60% 70% at 50% 60%,
+    rgba(176, 62, 94, 0.24),
+    transparent 70%
+  );
+
+  filter: blur(26px);
+}
+
+/* Extra room so tilted / hovered slabs are never clipped */
+.hero-tech-canvas {
+  position: absolute;
+  inset: -28px;
+
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero-tech-grid {
+  position: relative;
+  z-index: 2;
+
+  display: grid;
+  justify-content: center;
+}
+
+.hero-tech-card {
+  padding: 0 10px 18px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 3px;
+
+  text-align: center;
+}
+
+.hero-tech-name {
+  color: #f6e9ec;
+
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+}
+
+.hero-tech-detail {
+  color: rgba(240, 222, 227, 0.62);
+
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+}
+
+/* No WebGL: fall back to flat cards in the same palette */
+.hero-tech-stage.is-fallback .hero-tech-card {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  background:
+    radial-gradient(
+      120% 95% at 100% 100%,
+      rgba(176, 62, 94, 0.55),
+      rgba(101, 8, 31, 0.5) 40%,
+      rgba(101, 8, 31, 0) 75%
+    ),
+    linear-gradient(160deg, #150a0e, #0a0509);
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .hero-badges {
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .hero-badge {
+    font-size: 10px;
+    padding-inline: 10px;
+  }
+
+  .hero-title {
+    font-size: clamp(44px, 8vw, 72px);
+    letter-spacing: -2px;
+  }
+
+  .hero-description {
+    font-size: 15px;
+  }
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 640px) {
+  .hero {
+    min-height: calc(100vh - 70px);
+
+    padding: 22px 16px 60px;
+  }
+
+  .hero-badges {
+    max-width: 360px;
+
+    margin-bottom: 28px;
+  }
+
+  .hero-badge {
+    font-size: 9px;
+    letter-spacing: 0.65px;
+  }
+
+  .hero-title {
+    font-size: clamp(38px, 12vw, 58px);
+
+    line-height: 0.98;
+    letter-spacing: -1.5px;
+  }
+
+  .hero-description {
+    margin-top: 24px;
+
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .hero-tech-heading {
+    margin-top: 30px;
+
+    font-size: 9px;
+    letter-spacing: 0.6px;
+  }
+}
+
+@media (max-width: 640px) {
+}

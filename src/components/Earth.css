@@ -1,0 +1,633 @@
+/* =========================================
+   EARTH SECTION
+========================================= */
+
+.earth-section {
+  position: relative;
+
+  width: 100%;
+
+  overflow: hidden;
+
+  background: var(--section-bg);
+
+  color: #e9faff;
+
+  padding: 50px 5vw 50px;
+
+  isolation: isolate;
+}
+
+/* =========================================
+   TWO-COLUMN LAYOUT
+========================================= */
+
+.earth-layout {
+  position: relative;
+
+  max-width: 1320px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) 1fr;
+  align-items: center;
+  gap: 40px;
+
+  z-index: 5;
+}
+
+/* =========================================
+   COPY COLUMN
+========================================= */
+
+.earth-copy {
+  text-align: left;
+}
+
+.earth-heading {
+  position: relative;
+
+  margin: 0;
+
+  font-family: "Syne", sans-serif;
+
+  font-size: clamp(30px, 3.2vw, 46px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+
+  min-height: 1.2em;
+}
+
+/* Solid, opaque backing copy of the same text -- offset diagonally
+   to fake the same extruded depth as the hero title. It sits behind
+   the gradient layer (z-index: -1) and only peeks out past its
+   edges, exactly like Hero's shadow does under its opaque white
+   fill. This is a static duplicate (not tied to the scramble
+   animation's per-frame text), so it may not match letter-for-letter
+   during the brief scramble transition -- that's fine, it settles
+   into alignment the moment the real text resolves.
+*/
+.earth-heading::before {
+  content: attr(data-text);
+
+  position: absolute;
+  inset: 0;
+
+  color: #071018;
+
+  text-shadow:
+    1px 1px 0 #071018,
+    2px 2px 0 #071018,
+    3px 3px 0 #071018,
+    4px 4px 0 rgba(7, 16, 24, 0.9),
+    5px 5px 0 rgba(7, 16, 24, 0.75),
+    6px 6px 0 rgba(7, 16, 24, 0.55),
+    0 0 18px rgba(0, 0, 0, 0.45);
+
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* The wrapper itself */
+.earth-heading-text {
+  display: inline-block;
+
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+/* IMPORTANT:
+   ScrambleText renders the actual letters inside this element,
+   so force the gradient onto the rendered text element too.
+
+   This layer stays a CLEAN gradient with no shadow/stroke of its
+   own -- the depth comes entirely from the ::before backing copy
+   above, not from anything attached to this transparent-fill text.
+   Stacking a dark shadow directly on transparent text shows through
+   the see-through glyph interior and reads as solid black.
+*/
+.earth-heading-text,
+.earth-heading-text * {
+  background-image: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #f5d9df 45%,
+    #a83b59 75%,
+    #65081f 100%
+  );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.earth-lede {
+  margin-top: 14px;
+
+  max-width: 420px;
+
+  font-size: 14px;
+
+  line-height: 1.7;
+
+  color: #ffffff;
+
+  text-shadow:
+    1px 1px 0 #071018,
+    2px 2px 0 #071018,
+    3px 3px 0 #071018,
+    4px 4px 0 rgba(7, 16, 24, 0.9),
+    5px 5px 0 rgba(7, 16, 24, 0.75),
+    6px 6px 0 rgba(7, 16, 24, 0.55),
+    0 0 18px rgba(0, 0, 0, 0.45);
+}
+
+/* =========================================
+   STAT CARDS
+   Refractive glass slabs drawn by EarthStats (WebGL), with the
+   numbers as real DOM on top. Same palette as the tech cards:
+   cool blue light, one source per card, rings + dot matrix.
+   Without WebGL the .earth-stat-base layer below is the card.
+========================================= */
+
+.earth-stats {
+  position: relative;
+
+  max-width: 420px;
+  margin-top: 34px;
+}
+
+.earth-stats-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+/* ambient light pooled under the glass */
+.earth-stats-stage::before {
+  content: "";
+
+  position: absolute;
+  inset: -28px;
+  z-index: -1;
+
+  background: radial-gradient(
+    60% 60% at 50% 58%,
+    rgba(90, 125, 180, 0.16),
+    transparent 72%
+  );
+
+  pointer-events: none;
+}
+
+.earth-stats-canvas {
+  position: absolute;
+  inset: 0;
+
+  opacity: 0;
+  transition: opacity 0.9s ease 0.1s;
+
+  pointer-events: none;
+}
+
+.earth-stats-canvas canvas {
+  display: block;
+}
+
+.earth-stats-stage.is-glass .earth-stats-canvas {
+  opacity: 1;
+}
+
+.earth-stats-grid {
+  position: relative;
+  z-index: 1;
+
+  display: grid;
+}
+
+.earth-stat {
+  /* light source per card (set inline) + cursor glare (parked off-card) */
+  --glow-x: 100%;
+  --glow-y: 100%;
+  --mx: -400px;
+  --my: -400px;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  padding: 16px 18px 17px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Flat stand-in for the glass: shown without WebGL and while the
+   textures are painting, then fades out under the real slab. */
+.earth-stat-base {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0) 42%
+    ),
+    radial-gradient(
+      120% 95% at var(--glow-x) var(--glow-y),
+      rgba(90, 125, 180, 0.55) 0%,
+      rgba(38, 62, 110, 0.5) 36%,
+      rgba(38, 62, 110, 0) 74%
+    ),
+    linear-gradient(160deg, #111722 0%, #030509 100%);
+
+  box-shadow:
+    inset 0 -14px 22px -14px rgba(0, 0, 0, 0.6),
+    0 22px 40px -24px rgba(0, 0, 0, 0.95);
+
+  transition: opacity 0.7s ease;
+}
+
+.earth-stat-base::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  background-image: radial-gradient(
+    rgba(210, 225, 245, 0.5) 0.8px,
+    transparent 1.2px
+  );
+  background-size: 7px 7px;
+
+  -webkit-mask-image: radial-gradient(
+    75% 75% at var(--glow-x) var(--glow-y),
+    #000 0%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(
+    75% 75% at var(--glow-x) var(--glow-y),
+    #000 0%,
+    transparent 78%
+  );
+
+  opacity: 0.5;
+}
+
+.earth-stats-stage.is-glass .earth-stat-base {
+  opacity: 0;
+}
+
+/* Hairline rim: bright where the light hits, blue at the far corner */
+.earth-stat::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+
+  padding: 1px;
+  border-radius: inherit;
+
+  background: linear-gradient(
+    150deg,
+    rgba(210, 225, 245, 0.42),
+    rgba(210, 225, 245, 0.05) 38%,
+    rgba(210, 225, 245, 0.03) 62%,
+    rgba(90, 125, 180, 0.34)
+  );
+
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+
+  pointer-events: none;
+}
+
+/* Lit top lip + glare that follows the cursor */
+.earth-stat::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  border-radius: inherit;
+
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent)
+      50% 0 / 78% 1px no-repeat,
+    radial-gradient(
+      150px circle at var(--mx) var(--my),
+      rgba(190, 215, 255, 0.17),
+      transparent 70%
+    );
+
+  pointer-events: none;
+}
+
+.earth-stat-icon {
+  position: relative;
+  z-index: 3;
+
+  width: 20px;
+  height: 20px;
+
+  color: rgba(200, 218, 245, 0.72);
+}
+
+.earth-stat-body {
+  position: relative;
+  z-index: 3;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.earth-stat-value {
+  display: flex;
+  align-items: baseline;
+
+  font-family: "Inter", sans-serif;
+  font-size: 36px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+
+  background-image: linear-gradient(180deg, #ffffff 20%, #b9cdf2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.earth-stat-unit {
+  margin-left: 3px;
+
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+
+  color: rgba(200, 218, 245, 0.62);
+  -webkit-text-fill-color: rgba(200, 218, 245, 0.62);
+}
+
+.earth-stat-label {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+
+  color: rgba(215, 226, 245, 0.62);
+
+  transition: color 0.25s ease;
+}
+
+.earth-stat:hover .earth-stat-label {
+  color: rgba(232, 240, 255, 0.88);
+}
+
+/* screen-reader copy of the final number (the visible one counts up) */
+.earth-sr {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* =========================================
+   GLOBE COLUMN
+========================================= */
+
+.earth-globe-col {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.earth-globe-wrapper {
+  position: relative;
+
+  width: 100%;
+  max-width: 780px;
+
+  height: 580px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+}
+
+.earth-globe-wrapper canvas {
+  display: block !important;
+
+  max-width: 100% !important;
+}
+
+/* =========================================
+   ANCHORED NODE BADGES
+========================================= */
+
+.earth-node-badge {
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 7px 11px;
+
+  border: 1px solid rgba(96, 207, 237, 0.28);
+
+  border-radius: 6px;
+
+  background: rgba(4, 11, 18, 0.78);
+
+  backdrop-filter: blur(12px);
+
+  box-shadow: 0 0 18px rgba(20, 200, 255, 0.1);
+
+  font-family: monospace;
+
+  font-size: 9px;
+
+  color: #b8d9e5;
+
+  white-space: nowrap;
+
+  pointer-events: none;
+
+  z-index: 6;
+
+  opacity: 0;
+
+  transition: opacity 0.35s ease;
+
+  will-change: transform, opacity;
+}
+
+.earth-node-badge small {
+  margin-left: 3px;
+
+  font-size: 7px;
+
+  color: #51e4ff;
+
+  letter-spacing: 0.08em;
+}
+
+.status-dot {
+  width: 5px;
+  height: 5px;
+
+  border-radius: 50%;
+
+  background: #59e8ff;
+
+  box-shadow: 0 0 8px #59e8ff;
+
+  animation: statusPulse 1.8s infinite;
+
+  flex-shrink: 0;
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* =========================================
+   CONNECTOR LINES
+========================================= */
+
+.earth-connector-svg {
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  z-index: 5;
+}
+
+.earth-connector-line {
+  stroke: #5de2ff;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+
+  opacity: 0;
+
+  transition: opacity 0.35s ease;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 1024px) {
+  .earth-layout {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .earth-copy {
+    text-align: center;
+  }
+
+  .earth-lede,
+  .earth-stats {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .earth-node-badge {
+    display: none;
+  }
+
+  .earth-connector-svg {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .earth-section {
+    min-height: 780px;
+
+    padding: 60px 5vw 70px;
+  }
+
+  .earth-globe-wrapper {
+    height: 460px;
+  }
+
+  .earth-stats {
+    max-width: 360px;
+  }
+
+  .earth-stat {
+    padding: 14px 15px 14px;
+  }
+
+  .earth-stat-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .earth-stat-value {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .earth-section {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  .earth-globe-wrapper {
+    height: 380px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .earth-stats-canvas,
+  .earth-stat-base,
+  .earth-stat-label {
+    transition: none;
+  }
+}

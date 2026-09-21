@@ -1,0 +1,39 @@
+--- a/src/components/Hero.css
++++ b/src/components/Hero.css
+@@ -14,9 +14,7 @@
+ 
+   overflow: hidden;
+ 
+-  background:
+-    radial-gradient(circle at 50% 45%, rgba(18, 29, 47, 0.35), transparent 55%),
+-    linear-gradient(180deg, #030408 0%, #06070e 50%, #020408 100%);
++  background: var(--section-bg);
+ }
+ 
+ /* =========================================================
+--- a/src/components/Earth.css
++++ b/src/components/Earth.css
+@@ -10,9 +10,7 @@
+ 
+   overflow: hidden;
+ 
+-  background:
+-    radial-gradient(circle at 50% 45%, rgba(18, 29, 47, 0.35), transparent 55%),
+-    linear-gradient(180deg, #030408 0%, #06070e 50%, #020408 100%);
++  background: var(--section-bg);
+ 
+   color: #e9faff;
+ 
+--- a/src/components/BuildNext.css
++++ b/src/components/BuildNext.css
+@@ -13,9 +13,7 @@
+ 
+   padding: 110px 5vw 80px;
+ 
+-  background:
+-    radial-gradient(circle at 50% 55%, rgba(18, 29, 47, 0.35), transparent 55%),
+-    linear-gradient(180deg, #020408 0%, #06070e 50%, #020408 100%);
++  background: var(--section-bg);
+ 
+   color: #e9faff;
+ }
