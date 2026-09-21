@@ -143,3 +143,6 @@
     border-right-color: var(--border);
   }
 }
+
+
+.site-shell{position:relative;min-height:100%;isolation:isolate;overflow-x:clip}.site-content{position:relative;z-index:1}.site-backdrop{position:fixed;inset:0;z-index:0;width:100%;height:100dvh;pointer-events:none;opacity:0;animation:site-backdrop-in 900ms ease forwards}.site-backdrop canvas{display:block;width:100%!important;height:100%!important}@keyframes site-backdrop-in{from{opacity:0}to{opacity:1}}.bn-canvas,.hero-tech-canvas,.mm-glass,.earth-globe-wrapper{opacity:0;transform:translate3d(0,10px,0) scale(.992);transition:opacity 520ms cubic-bezier(.16,1,.3,1),transform 650ms cubic-bezier(.16,1,.3,1)}.bn-canvas.is-ready,.hero-tech-canvas.is-ready,.mm-glass.is-ready,.earth-globe-wrapper.is-ready{opacity:1;transform:none}
