@@ -1,0 +1,49 @@
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  /* instant, always-visible base so the page looks complete
+     before any WebGL is ready */
+  background:
+    radial-gradient(circle at 50% 45%, rgba(18, 29, 47, 0.35), transparent 55%),
+    linear-gradient(180deg, #030408 0%, #06070e 50%, #020408 100%);
+}
+
+.site-backdrop-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+.site-backdrop-layer canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* a layer only appears once its shaders are compiled + first frame drawn */
+.site-backdrop-layer:not(.is-live) {
+  opacity: 0 !important;
+}
+
+.site-backdrop-hero {
+  opacity: 1;
+}
+.site-backdrop.is-hero-off .site-backdrop-hero {
+  opacity: 0;
+}
+.site-backdrop-ambient {
+  opacity: 0;
+}
+.site-backdrop.is-hero-off .site-backdrop-ambient {
+  opacity: 1;
+}
+
+/* sections must stack above the fixed backdrop */
+main > section {
+  position: relative;
+  z-index: 1;
+}

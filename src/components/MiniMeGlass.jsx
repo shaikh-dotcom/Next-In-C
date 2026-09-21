@@ -689,7 +689,7 @@ export default function MiniMeGlass({
   const hostRef = useRef(null);
   const pointer = useRef({ x: 0, y: 0, has: false });
   const art = useArt(features);
-
+  const [ready, setReady] = useState(false);
   // WebGL canvas only exists while this section is near the viewport
   const { near, epoch, onCreated } = useLazyCanvas(hostRef);
 
@@ -731,11 +731,18 @@ export default function MiniMeGlass({
   }, []);
 
   return (
-    <div className="mm-glass" ref={hostRef} aria-hidden="true">
+    <div
+      className={`mm-glass${ready ? " is-live" : ""}`}
+      ref={hostRef}
+      aria-hidden="true"
+    >
       {near && (
         <Canvas
           key={epoch}
-          onCreated={onCreated}
+          onCreated={(s) => {
+            onCreated(s);
+            setReady(true);
+          }}
           orthographic
           dpr={[1, 2]}
           camera={{ zoom: 100, position: [0, 0, 10], near: 0.1, far: 50 }}

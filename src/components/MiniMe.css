@@ -38,8 +38,16 @@
   border-radius: 32px;
 
   background:
-    radial-gradient(60% 80% at 80% 48%, rgba(255, 32, 82, 0.13), transparent 70%),
-    radial-gradient(50% 60% at 0% 100%, rgba(101, 8, 31, 0.38), transparent 70%),
+    radial-gradient(
+      60% 80% at 80% 48%,
+      rgba(255, 32, 82, 0.13),
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 60% at 0% 100%,
+      rgba(101, 8, 31, 0.38),
+      transparent 70%
+    ),
     linear-gradient(160deg, #10111a 0%, #08090e 100%);
 
   box-shadow:
@@ -507,11 +515,14 @@
 
 .mm-glass canvas {
   display: block;
-
+  opacity: 0;
+  transition: opacity 1.2s ease 0.15s;
   width: 100% !important;
   height: 100% !important;
 }
-
+.mm-glass.is-live canvas {
+  opacity: 1;
+}
 /* =========================================
    RESPONSIVE
 ========================================= */

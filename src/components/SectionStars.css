@@ -1,0 +1,30 @@
+.section-stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.section-stars-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  border-radius: 50%;
+  animation: sectionStarsTwinkle 7s ease-in-out infinite alternate;
+}
+
+.section-stars-near {
+  animation-duration: 4.5s;
+}
+
+@keyframes sectionStarsTwinkle {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}

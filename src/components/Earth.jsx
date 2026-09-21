@@ -8,6 +8,7 @@ import React, {
 import Globe from "react-globe.gl";
 import { scaleSequentialSqrt } from "d3-scale";
 import { interpolateYlOrRd } from "d3-scale-chromatic";
+import useLazyCanvas from "./useLazyCanvas";
 import { Activity, Eye, Network, Timer } from "lucide-react";
 import ScrambleText from "./ScrambleText";
 import SectionStars from "./SectionStars";
@@ -74,6 +75,7 @@ const ROUTES = [
 const HEADING_TEXT = "Distributed Global Routing";
 
 export default function Earth() {
+  const sectionRef = useRef(null);
   const globeRef = useRef(null);
   const wrapperRef = useRef(null);
   const badgeRefs = useRef([]);
@@ -83,21 +85,38 @@ export default function Earth() {
   const [countries, setCountries] = useState({ features: [] });
   const [hoveredCountry, setHoveredCountry] = useState(null);
   const [dims, setDims] = useState({ width: 850, height: 650 });
-
+  const { near, inView } = useLazyCanvas(sectionRef, {
+    rootMargin: "800px 0px",
+  });
+  const inViewRef = useRef(inView);
+  useEffect(() => {
+    inViewRef.current = inView;
+  }, [inView]);
   /*
    * Load world country GeoJSON
    */
   useEffect(() => {
+    if (!near) return undefined;
+    const ctl = new AbortController();
     fetch(
       "https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson",
+      { signal: ctl.signal },
     )
       .then((res) => res.json())
       .then((data) => setCountries(data))
       .catch((err) => {
-        console.error("Failed to load country data:", err);
+        if (err.name !== "AbortError")
+          console.error("Failed to load country data:", err);
       });
-  }, []);
+    return () => ctl.abort();
+  }, [near]);
 
+  useEffect(() => {
+    const g = globeRef.current;
+    if (!g) return;
+    if (inView) g.resumeAnimation();
+    else g.pauseAnimation();
+  }, [inView, countries]);
   /*
    * Size the globe to its actual column instead of the window, so it
    * behaves correctly inside the two-column layout.
@@ -201,6 +220,7 @@ export default function Earth() {
       }
 
       rafRef.current = requestAnimationFrame(tick);
+      if (!inViewRef.current || !globeRef.current) return;
     };
 
     rafRef.current = requestAnimationFrame(tick);
@@ -210,7 +230,7 @@ export default function Earth() {
   }, []);
 
   return (
-    <section className="earth-section">
+    <section className="earth-section" ref={sectionRef}>
       <SectionStars />
 
       <div className="earth-layout">

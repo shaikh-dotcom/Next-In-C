@@ -319,7 +319,7 @@ function Slab({ index, position, w, h, texture, pointer, reduced }) {
             attenuationDistance={THEME.depthDistance}
             envMapIntensity={1.4}
             samples={5}
-            resolution={1080}
+            resolution={512}
             backside={false}
           />
         </RoundedBox>
@@ -401,7 +401,7 @@ export default function TechGlass({ items }) {
   const [avail, setAvail] = useState(0);
 
   // WebGL canvas only exists while the cards are near the viewport
-  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
+  const { near, inView, epoch, onCreated } = useLazyCanvas(hostRef);
 
   const textures = useCardTextures(items);
   const webgl = useMemo(supportsWebGL, []);
@@ -465,7 +465,7 @@ export default function TechGlass({ items }) {
                 dpr={[1, 1.5]}
                 camera={{ zoom: PX, position: [0, 0, 10], near: 0.1, far: 50 }}
                 gl={{ alpha: true, antialias: true }}
-                frameloop={reduced ? "demand" : "always"}
+                frameloop={reduced ? "demand" : inView ? "always" : "never"}
                 style={{ pointerEvents: "none" }}
               >
                 {textures.length === items.length && (

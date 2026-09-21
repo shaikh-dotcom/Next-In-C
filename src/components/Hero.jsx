@@ -1,6 +1,5 @@
 import React from "react";
 import { Award, BadgeCheck, CircleCheck, FastForward } from "lucide-react";
-import HeroBackdrop from "./HeroBackdrop";
 import TechGlass from "./TechGlass";
 import {
   SolidityIcon,
@@ -12,7 +11,7 @@ import {
 } from "./TechIcons";
 import "./Hero.css";
 
-export default function Hero() {
+export default function Hero({ hostRef }) {
   const trustBadges = [
     {
       icon: <CircleCheck />,
@@ -76,8 +75,7 @@ export default function Hero() {
   ];
 
   return (
-    <section className="hero">
-      <HeroBackdrop />
+    <section className="hero" ref={hostRef}>
       <div className="hero-scrim" />
 
       <div className="hero-inner">

@@ -1,0 +1,667 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index 56427cf..e0d1a33 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -5,14 +5,18 @@ import MiniMe from "./components/MiniMe";
+ import Hero from "./components/Hero";
+ import Founders from "./components/Founders";
+ import Earth from "./components/Earth";
++import GlobalBackdrop from "./components/GlobalBackdrop";
+ export default function App() {
+   return (
+     <div className="min-h-screen bg-[#04060e] text-slate-100">
++      {/* Single page-wide WebGL backdrop (fixed, mounted once) */}
++      <GlobalBackdrop />
++
+       {/* Top Navigation Bar */}
+       <Navbar />
+ 
+       {/* Hero Section */}
+-      <main>
++      <main className="relative z-10">
+         <Hero />
+         {/* Global Routing / Earth */}
+         <Earth />
+diff --git a/src/components/BuildNext.css b/src/components/BuildNext.css
+index 3a168e2..7be0f37 100644
+--- a/src/components/BuildNext.css
++++ b/src/components/BuildNext.css
+@@ -13,7 +13,7 @@
+ 
+   padding: 110px 5vw 80px;
+ 
+-  background: var(--section-bg);
++  background: transparent;
+ 
+   color: #e9faff;
+ }
+diff --git a/src/components/BuildNext.jsx b/src/components/BuildNext.jsx
+index 9a936f2..3a7df2b 100644
+--- a/src/components/BuildNext.jsx
++++ b/src/components/BuildNext.jsx
+@@ -16,7 +16,7 @@ import {
+ } from "@react-three/drei";
+ import * as THREE from "three";
+ import ScrambleText from "./ScrambleText";
+-import SectionStars from "./SectionStars";
++import useLazyCanvas from "./useLazyCanvas";
+ import "./BuildNext.css";
+ 
+ /*
+@@ -1234,9 +1234,10 @@ export default function BuildNext() {
+   const hostRef = useRef(null);
+ 
+   const [width, setWidth] = useState(0);
+-  const [active, setActive] = useState(false);
+   const [hovered, setHovered] = useState(-1);
+ 
++  const { near, visible, epoch, onCreated } = useLazyCanvas(hostRef);
++
+   const art = useArtwork();
+   const webgl = useMemo(supportsWebGL, []);
+   const reduced = useMemo(
+@@ -1257,20 +1258,6 @@ export default function BuildNext() {
+     return () => observer.disconnect();
+   }, []);
+ 
+-  // Only render while on screen (Hero and Earth already run canvases)
+-  useEffect(() => {
+-    const el = hostRef.current;
+-    if (!el) return undefined;
+-
+-    const observer = new IntersectionObserver(
+-      ([entry]) => setActive(entry.isIntersecting),
+-      { rootMargin: "150px" },
+-    );
+-
+-    observer.observe(el);
+-    return () => observer.disconnect();
+-  }, []);
+-
+   // Hover cursor feedback is left to the cubes themselves; make sure a
+   // stale hover never sticks when the pointer leaves the section.
+   useEffect(() => {
+@@ -1287,8 +1274,6 @@ export default function BuildNext() {
+ 
+   return (
+     <section className="bn-section" id="products">
+-      <SectionStars />
+-
+       <div className="bn-head">
+         <div className="bn-eyebrow">// FROM IDEAS TO IMPACT</div>
+ 
+@@ -1300,13 +1285,15 @@ export default function BuildNext() {
+       </div>
+ 
+       <div className="bn-stage" ref={hostRef}>
+-        {layout && webgl && (
++        {layout && webgl && near && (
+           <div className="bn-canvas" style={{ height }}>
+             <Canvas
++              key={epoch}
++              onCreated={onCreated}
+               dpr={[1, 1.75]}
+               camera={{ fov: FOV, position: [0, 8, 20], near: 0.1, far: 200 }}
+               gl={{ alpha: true, antialias: true }}
+-              frameloop={active ? (reduced ? "demand" : "always") : "never"}
++              frameloop={visible ? (reduced ? "demand" : "always") : "never"}
+             >
+               {art && (
+                 <Scene
+diff --git a/src/components/Earth.css b/src/components/Earth.css
+index cc1bdb3..b695474 100644
+--- a/src/components/Earth.css
++++ b/src/components/Earth.css
+@@ -10,7 +10,7 @@
+ 
+   overflow: hidden;
+ 
+-  background: var(--section-bg);
++  background: transparent;
+ 
+   color: #e9faff;
+ 
+diff --git a/src/components/Earth.jsx b/src/components/Earth.jsx
+index a8765de..4b71951 100644
+--- a/src/components/Earth.jsx
++++ b/src/components/Earth.jsx
+@@ -10,7 +10,6 @@ import { scaleSequentialSqrt } from "d3-scale";
+ import { interpolateYlOrRd } from "d3-scale-chromatic";
+ import { Activity, Eye, Network, Timer } from "lucide-react";
+ import ScrambleText from "./ScrambleText";
+-import SectionStars from "./SectionStars";
+ import EarthStats from "./EarthStats";
+ import "./Earth.css";
+ 
+@@ -211,8 +210,6 @@ export default function Earth() {
+ 
+   return (
+     <section className="earth-section">
+-      <SectionStars />
+-
+       <div className="earth-layout">
+         {/* Copy column */}
+         <div className="earth-copy">
+diff --git a/src/components/EarthStats.jsx b/src/components/EarthStats.jsx
+index 3e6efca..3c749ac 100644
+--- a/src/components/EarthStats.jsx
++++ b/src/components/EarthStats.jsx
+@@ -409,7 +409,7 @@ export default function EarthStats({ items }) {
+   const [seen, setSeen] = useState(false);
+ 
+   // WebGL canvas only exists while the cards are near the viewport
+-  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
++  const { near, visible, epoch, onCreated } = useLazyCanvas(hostRef);
+ 
+   const textures = useStatTextures(items.length);
+   const webgl = useMemo(supportsWebGL, []);
+@@ -503,7 +503,7 @@ export default function EarthStats({ items }) {
+                 dpr={[1, 1.5]}
+                 camera={{ zoom: PX, position: [0, 0, 10], near: 0.1, far: 50 }}
+                 gl={{ alpha: true, antialias: true }}
+-                frameloop={reduced ? "demand" : "always"}
++                frameloop={visible ? (reduced ? "demand" : "always") : "never"}
+                 style={{ pointerEvents: "none" }}
+               >
+                 {ready && (
+diff --git a/src/components/Founders.css b/src/components/Founders.css
+index fb5a6b1..a7c916a 100644
+--- a/src/components/Founders.css
++++ b/src/components/Founders.css
+@@ -20,9 +20,7 @@
+ 
+   padding: 70px 5vw 130px;
+ 
+-  background:
+-    radial-gradient(circle at 50% 38%, rgba(18, 29, 47, 0.35), transparent 55%),
+-    linear-gradient(180deg, var(--void) 0%, var(--ink) 50%, var(--void) 100%);
++  background: transparent;
+ 
+   color: #e9faff;
+ 
+diff --git a/src/components/Founders.jsx b/src/components/Founders.jsx
+index aa32448..b0b273f 100644
+--- a/src/components/Founders.jsx
++++ b/src/components/Founders.jsx
+@@ -7,7 +7,6 @@ import React, {
+ } from "react";
+ import { ArrowUpRight } from "lucide-react";
+ import ScrambleText from "./ScrambleText";
+-import SectionStars from "./SectionStars";
+ import "./Founders.css";
+ 
+ /*
+@@ -543,7 +542,6 @@ export default function Founders() {
+       <FilterDefs />
+ 
+       <div className="fx-stars" aria-hidden="true">
+-        <SectionStars />
+       </div>
+ 
+       <div className="fx-wrap">
+diff --git a/src/components/GlobalBackdrop.jsx b/src/components/GlobalBackdrop.jsx
+new file mode 100644
+index 0000000..31ce007
+--- /dev/null
++++ b/src/components/GlobalBackdrop.jsx
+@@ -0,0 +1,14 @@
++import React from "react";
++import HeroBackdrop from "./HeroBackdrop";
++
++/*
++ * The one and only full-page WebGL backdrop.
++ *
++ * Fixed behind every section, mounted once, never unmounted. It shows the
++ * full hero scene (streams, core, rings) at the top of the page and blends
++ * into the quiet ambient haze as the user scrolls down. Sections must have
++ * transparent backgrounds so it shows through.
++ */
++export default function GlobalBackdrop() {
++  return <HeroBackdrop variant="global" className="gl-backdrop" />;
++}
+diff --git a/src/components/Hero.css b/src/components/Hero.css
+index 1c1abd9..f5fef08 100644
+--- a/src/components/Hero.css
++++ b/src/components/Hero.css
+@@ -14,9 +14,6 @@
+ 
+   overflow: hidden;
+ 
+-  background:
+-    radial-gradient(circle at 50% 45%, rgba(18, 29, 47, 0.35), transparent 55%),
+-    linear-gradient(180deg, #030408 0%, #06070e 50%, #020408 100%);
+ }
+ 
+ /* =========================================================
+@@ -75,6 +72,9 @@
+       transparent 55%,
+       rgba(1, 2, 6, 0.72) 100%
+     );
++
++  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 70%, transparent 100%);
++  mask-image: linear-gradient(to bottom, #000 0, #000 70%, transparent 100%);
+ }
+ 
+ /* Fine film grain: kills gradient banding and adds a printed,
+@@ -90,6 +90,8 @@
+ 
+   opacity: 0.07;
+   mix-blend-mode: overlay;
++  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 70%, transparent 100%);
++  mask-image: linear-gradient(to bottom, #000 0, #000 70%, transparent 100%);
+ 
+   background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='220'%20height='220'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='.85'%20numOctaves='2'%20stitchTiles='stitch'/%3E%3CfeColorMatrix%20values='0%200%200%200%201%200%200%200%200%201%200%200%200%200%201%200%200%200%20.9%200'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url%28%23n%29'/%3E%3C/svg%3E");
+ }
+diff --git a/src/components/Hero.jsx b/src/components/Hero.jsx
+index 408f48d..be94c3e 100644
+--- a/src/components/Hero.jsx
++++ b/src/components/Hero.jsx
+@@ -1,6 +1,5 @@
+ import React from "react";
+ import { Award, BadgeCheck, CircleCheck, FastForward } from "lucide-react";
+-import HeroBackdrop from "./HeroBackdrop";
+ import TechGlass from "./TechGlass";
+ import {
+   SolidityIcon,
+@@ -77,7 +76,6 @@ export default function Hero() {
+ 
+   return (
+     <section className="hero">
+-      <HeroBackdrop />
+       <div className="hero-scrim" />
+ 
+       <div className="hero-inner">
+diff --git a/src/components/HeroBackdrop.jsx b/src/components/HeroBackdrop.jsx
+index 0e9b446..c014272 100644
+--- a/src/components/HeroBackdrop.jsx
++++ b/src/components/HeroBackdrop.jsx
+@@ -81,6 +81,7 @@ const GLSL_COMMON = /* glsl */ `
+   uniform vec2 uTextC;
+   uniform vec2 uTextS;
+   uniform float uDim;
++  uniform float uFx; // 1 = hero layers fully visible, 0 = gone
+ 
+   // 0 inside the text zone, 1 outside (soft edge)
+   float textMask(vec2 ndc) {
+@@ -353,7 +354,7 @@ const streamVert = /* glsl */ `
+     col *= 0.65 + 0.6 * t;
+ 
+     vColor = col;
+-    vAlpha = fade * mix(uDim, 1.0, mask) * mix(1.0, 0.6, depth) * uIntro;
++    vAlpha = fade * mix(uDim, 1.0, mask) * mix(1.0, 0.6, depth) * uIntro * uFx;
+ 
+     gl_Position = clip;
+   }
+@@ -539,7 +540,7 @@ const coreVert = /* glsl */ `
+     gl_PointSize = aSize * pulse * uPixelRatio * (300.0 / -mv.z) * mix(1.0, 0.75, depth) * uIntro;
+ 
+     vColor = aColor * mix(1.0, 0.6, depth);
+-    vAlpha = mix(uDim, 1.0, mask) * uIntro;
++    vAlpha = mix(uDim, 1.0, mask) * uIntro * uFx;
+ 
+     gl_Position = clip;
+   }
+@@ -661,7 +662,7 @@ const ringVert = /* glsl */ `
+     vT = fract(aA / 6.28318 - uTime * uHead - uPhase);
+ 
+     vec4 clip = projectionMatrix * viewMatrix * wp;
+-    vMask = mix(uDim, 1.0, textMask(clip.xy / clip.w));
++    vMask = mix(uDim, 1.0, textMask(clip.xy / clip.w)) * uFx;
+ 
+     gl_Position = clip;
+   }
+@@ -870,7 +871,9 @@ function Specks({ shared, count, sizeMin, sizeMax, bokeh }) {
+    SCENE
+    ========================================================= */
+ 
+-function Scene({ cfg, dim, hero, reduced, containerRef }) {
++function Scene({ cfg, dim, hero, reduced, containerRef, global }) {
++  const heroLayers = useRef(null);
++  const scrollMix = useRef(0);
+   const shared = useMemo(() => {
+     const common = {
+       uTime: { value: reduced ? 14 : 0 },
+@@ -881,6 +884,7 @@ function Scene({ cfg, dim, hero, reduced, containerRef }) {
+       uTextC: { value: new THREE.Vector2(...TEXT_CENTER) },
+       uTextS: { value: new THREE.Vector2(...TEXT_SIZE) },
+       uDim: { value: dim },
++      uFx: { value: 1 },
+     };
+ 
+     return {
+@@ -959,6 +963,26 @@ function Scene({ cfg, dim, hero, reduced, containerRef }) {
+ 
+     shared.uPointerSoft.value.set(s.x, s.y);
+ 
++    // One backdrop for the whole page: as the user scrolls off the hero,
++    // the streams / core / rings fade out and the haze settles into the
++    // quiet ambient look. Everything is a uniform change, so nothing is
++    // ever mounted, unmounted or recompiled while scrolling.
++    if (global) {
++      const span = Math.max(window.innerHeight * 0.85, 1);
++      const raw = Math.min(1, Math.max(0, window.scrollY / span));
++      const kScroll = 1 - Math.exp(-dt * 6);
++      scrollMix.current += (raw - scrollMix.current) * kScroll;
++
++      const m = scrollMix.current;
++      const e = m * m * (3 - 2 * m); // smoothstep
++
++      c.uDim.value = dim + (0.7 - dim) * e;
++      shared.uHero.value = 1 + (0.25 - 1) * e;
++      c.uFx.value = 1 - e;
++
++      if (heroLayers.current) heroLayers.current.visible = e < 0.995;
++    }
++
+     const drift = reduced ? 0 : Math.sin(c.uTime.value * 0.12) * 0.5;
+     state.camera.position.set(s.x * 1.8, s.y * 1.0, 32 + drift);
+     state.camera.lookAt(0, 0, 0);
+@@ -971,10 +995,12 @@ function Scene({ cfg, dim, hero, reduced, containerRef }) {
+       <Specks shared={shared} count={cfg.bokeh} sizeMin={2.5} sizeMax={8} bokeh />
+       <Specks shared={shared} count={cfg.dust} sizeMin={0.2} sizeMax={1.0} />
+ 
+-      {cfg.orbits && RINGS.map((ring) => <Ring key={ring.R} shared={shared} cfg={ring} reduced={reduced} />)}
++      <group ref={heroLayers}>
++        {cfg.orbits && RINGS.map((ring) => <Ring key={ring.R} shared={shared} cfg={ring} reduced={reduced} />)}
+ 
+-      {cfg.strands > 0 && <Streams shared={shared} strands={cfg.strands} per={cfg.per} />}
+-      {cfg.core > 0 && <Core shared={shared} count={cfg.core} reduced={reduced} />}
++        {cfg.strands > 0 && <Streams shared={shared} strands={cfg.strands} per={cfg.per} />}
++        {cfg.core > 0 && <Core shared={shared} count={cfg.core} reduced={reduced} />}
++      </group>
+ 
+       <EffectComposer multisampling={0}>
+         <Bloom
+@@ -997,14 +1023,21 @@ export default function HeroBackdrop({ variant = "hero", className }) {
+   const hostRef = useRef(null);
+ 
+   const ambient = variant === "ambient";
+-  const cfg = useMemo(() => (ambient ? AMBIENT_TIERS : TIERS)[getTier()], [ambient]);
++  const global = variant === "global"; // one fixed canvas behind the whole page
++  const cfg = useMemo(
++    () => (ambient ? AMBIENT_TIERS : TIERS)[getTier()],
++    [ambient],
++  );
+   const reduced = useMemo(
+     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+     [],
+   );
+ 
+-  // The WebGL canvas only exists while this element is near the viewport
+-  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
++  // Section variants only mount their canvas near the viewport; the global
++  // one is mounted once and stays alive for the whole visit.
++  const lazy = useLazyCanvas(hostRef);
++  const { epoch, onCreated } = lazy;
++  const mounted = global || lazy.near;
+ 
+   return (
+     <div
+@@ -1012,14 +1045,18 @@ export default function HeroBackdrop({ variant = "hero", className }) {
+       ref={hostRef}
+       aria-hidden="true"
+     >
+-      {near && (
++      {mounted && (
+         <Canvas
+           key={epoch}
+           onCreated={onCreated}
+           dpr={ambient ? [1, 1.25] : [1, 1.5]}
+-          gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
++          gl={{
++            antialias: false,
++            alpha: false,
++            powerPreference: "high-performance",
++          }}
+           camera={{ position: [0, 0, 32], fov: 50, near: 0.1, far: 200 }}
+-          frameloop={reduced ? "demand" : "always"}
++          frameloop={reduced && !global ? "demand" : "always"}
+         >
+           <Scene
+             cfg={cfg}
+@@ -1027,6 +1064,7 @@ export default function HeroBackdrop({ variant = "hero", className }) {
+             hero={ambient ? 0.25 : 1}
+             reduced={reduced}
+             containerRef={hostRef}
++            global={global}
+           />
+         </Canvas>
+       )}
+diff --git a/src/components/MiniMe.css b/src/components/MiniMe.css
+index e20e9a6..ed3237d 100644
+--- a/src/components/MiniMe.css
++++ b/src/components/MiniMe.css
+@@ -13,7 +13,7 @@
+ 
+   padding: 70px 5vw 130px;
+ 
+-  background: var(--section-bg);
++  background: transparent;
+ 
+   color: #e9faff;
+ }
+diff --git a/src/components/MiniMe.jsx b/src/components/MiniMe.jsx
+index 87f5a77..a5c5121 100644
+--- a/src/components/MiniMe.jsx
++++ b/src/components/MiniMe.jsx
+@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
+ import { ArrowUpRight, Award } from "lucide-react";
+ import ScrambleText from "./ScrambleText";
+ import MiniMeGlass from "./MiniMeGlass";
+-import SectionStars from "./SectionStars";
+ import "./MiniMe.css";
+ 
+ /*
+@@ -663,8 +662,6 @@ export default function MiniMe() {
+ 
+   return (
+     <section className="mm-section" id="mini-me" ref={sectionRef}>
+-      <SectionStars />
+-
+       <div className={`mm-card${seen ? " is-in" : ""}`}>
+         <div className="mm-copy">
+           <div className="mm-chips">
+diff --git a/src/components/TechGlass.jsx b/src/components/TechGlass.jsx
+index e70fa98..ec336a5 100644
+--- a/src/components/TechGlass.jsx
++++ b/src/components/TechGlass.jsx
+@@ -401,7 +401,7 @@ export default function TechGlass({ items }) {
+   const [avail, setAvail] = useState(0);
+ 
+   // WebGL canvas only exists while the cards are near the viewport
+-  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
++  const { near, visible, epoch, onCreated } = useLazyCanvas(hostRef);
+ 
+   const textures = useCardTextures(items);
+   const webgl = useMemo(supportsWebGL, []);
+@@ -465,7 +465,7 @@ export default function TechGlass({ items }) {
+                 dpr={[1, 1.5]}
+                 camera={{ zoom: PX, position: [0, 0, 10], near: 0.1, far: 50 }}
+                 gl={{ alpha: true, antialias: true }}
+-                frameloop={reduced ? "demand" : "always"}
++                frameloop={visible ? (reduced ? "demand" : "always") : "never"}
+                 style={{ pointerEvents: "none" }}
+               >
+                 {textures.length === items.length && (
+diff --git a/src/components/useLazyCanvas.js b/src/components/useLazyCanvas.js
+index 4344edc..399a1e7 100644
+--- a/src/components/useLazyCanvas.js
++++ b/src/components/useLazyCanvas.js
+@@ -3,30 +3,52 @@ import { useCallback, useEffect, useRef, useState } from "react";
+ /*
+  * useLazyCanvas
+  *
+- * Browsers allow only ~16 live WebGL contexts per page, and this site
+- * has many canvases (hero backdrop, glass cards, section stars, glass
+- * logo...). Mount a <Canvas> only while its host element is near the
+- * viewport and unmount it when it is far away; unmounting frees the GPU
+- * context for the next section.
++ * Browsers allow only ~16 live WebGL contexts per page, and creating or
++ * destroying one mid-scroll is what makes a page stutter and flash. So a
++ * canvas here has three states, driven by where its host element is:
++ *
++ *   far      (> dropMargin away)   -> unmounted, GPU context freed
++ *   near     (< mountMargin away)  -> mounted, shaders compiled off-screen
++ *   visible  (< visibleMargin)     -> actually rendering frames
++ *
++ * The canvas is built early (before it scrolls into view), only renders
++ * while visible, and is dropped only when the user is far away. It fades
++ * in after its first frames, so it never pops in or flashes.
+  *
+  *   const hostRef = useRef(null);
+- *   const { near, epoch, onCreated } = useLazyCanvas(hostRef);
++ *   const { near, visible, epoch, onCreated } = useLazyCanvas(hostRef);
+  *
+  *   <div ref={hostRef}>
+- *     {near && <Canvas key={epoch} onCreated={onCreated} ... />}
++ *     {near && (
++ *       <Canvas
++ *         key={epoch}
++ *         onCreated={onCreated}
++ *         frameloop={visible ? "always" : "never"}
++ *       />
++ *     )}
+  *   </div>
+  *
+- * near       true while the host is within `rootMargin` of the viewport
+- * epoch      changes after a lost GL context; use it as the Canvas key so
+- *            the canvas is rebuilt from scratch
+- * onCreated  pass to <Canvas onCreated>; it watches for context loss
++ * near       mount the <Canvas> while true
++ * visible    render frames only while true (frameloop "never" otherwise)
++ * epoch      changes after a lost GL context; use it as the Canvas key
++ * onCreated  pass to <Canvas onCreated>: context-loss recovery + fade-in
+  */
+ 
+ const RETRY_WINDOW_MS = 8000;
+ const MAX_RETRIES = 3;
++const FADE_AFTER_FRAMES = 3;
++const FADE_GIVE_UP_FRAMES = 600;
+ 
+-export default function useLazyCanvas(ref, { rootMargin = "400px 0px" } = {}) {
++export default function useLazyCanvas(
++  ref,
++  {
++    mountMargin = "900px 0px",
++    visibleMargin = "80px 0px",
++    dropMargin = "2600px 0px",
++  } = {},
++) {
+   const [near, setNear] = useState(false);
++  const [visible, setVisible] = useState(false);
+   const [epoch, setEpoch] = useState(0);
+   const retries = useRef([]);
+ 
+@@ -36,21 +58,50 @@ export default function useLazyCanvas(ref, { rootMargin = "400px 0px" } = {}) {
+ 
+     if (typeof IntersectionObserver === "undefined") {
+       setNear(true);
++      setVisible(true);
+       return undefined;
+     }
+ 
+-    const observer = new IntersectionObserver(
+-      ([entry]) => setNear(entry.isIntersecting),
+-      { rootMargin },
+-    );
++    const watch = (rootMargin, onChange) => {
++      const observer = new IntersectionObserver(
++        (entries) => onChange(entries[entries.length - 1].isIntersecting),
++        { rootMargin },
++      );
++      observer.observe(el);
++      return observer;
++    };
++
++    const observers = [
++      watch(mountMargin, (inside) => inside && setNear(true)),
++      watch(visibleMargin, setVisible),
++      watch(dropMargin, (inside) => !inside && setNear(false)),
++    ];
+ 
+-    observer.observe(el);
+-    return () => observer.disconnect();
+-  }, [ref, rootMargin]);
++    return () => observers.forEach((o) => o.disconnect());
++  }, [ref, mountMargin, visibleMargin, dropMargin]);
+ 
+   const onCreated = useCallback(({ gl }) => {
+     const canvas = gl.domElement;
+ 
++    /* ---- fade in once real frames have been drawn ---- */
++    canvas.style.opacity = "0";
++    canvas.style.transition = "opacity 700ms cubic-bezier(0.22, 1, 0.36, 1)";
++
++    let polls = 0;
++    const waitForFrames = () => {
++      if (!canvas.isConnected && polls > 0) return;
++      polls += 1;
++
++      const drawn = gl.info?.render?.frame ?? 0;
++      if (drawn >= FADE_AFTER_FRAMES || polls > FADE_GIVE_UP_FRAMES) {
++        canvas.style.opacity = "1";
++        return;
++      }
++      requestAnimationFrame(waitForFrames);
++    };
++    requestAnimationFrame(waitForFrames);
++
++    /* ---- context loss recovery ---- */
+     const onLost = (event) => {
+       // keep the browser from giving up on the context for good
+       event.preventDefault();
+@@ -67,5 +118,5 @@ export default function useLazyCanvas(ref, { rootMargin = "400px 0px" } = {}) {
+     canvas.addEventListener("webglcontextlost", onLost, false);
+   }, []);
+ 
+-  return { near, epoch, onCreated };
++  return { near, visible, epoch, onCreated };
+ }
+diff --git a/src/index.css b/src/index.css
+index 9e3babf..b697fb7 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -6,6 +6,18 @@
+     linear-gradient(180deg, #030408 0%, #06070e 50%, #020408 100%);
+ }
+ 
++.gl-backdrop {
++  position: fixed;
++  inset: 0;
++  z-index: 0;
++  pointer-events: none;
++  background: #04060e;
++}
++
++.gl-backdrop canvas {
++  display: block;
++}
++
+ .section-stars {
+   position: absolute;
+   inset: 0;
+diff --git a/src/main.jsx b/src/main.jsx
+index ffb207b..1e093c0 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -1,19 +1,11 @@
+ import React from "react";
+ import ReactDOM from "react-dom/client";
+-import { ParticlesProvider } from "@tsparticles/react";
+-import { loadSlim } from "@tsparticles/slim";
+ 
+ import App from "./App";
+ import "./index.css";
+ 
+-const particlesInit = async (engine) => {
+-  await loadSlim(engine);
+-};
+-
+ ReactDOM.createRoot(document.getElementById("root")).render(
+   <React.StrictMode>
+-    <ParticlesProvider init={particlesInit}>
+-      <App />
+-    </ParticlesProvider>
++    <App />
+   </React.StrictMode>,
+ );

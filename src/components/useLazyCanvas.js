@@ -1,32 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /*
- * useLazyCanvas
+ * useLazyCanvas v2 — "create once, pause forever"
  *
- * Browsers allow only ~16 live WebGL contexts per page, and this site
- * has many canvases (hero backdrop, glass cards, section stars, glass
- * logo...). Mount a <Canvas> only while its host element is near the
- * viewport and unmount it when it is far away; unmounting frees the GPU
- * context for the next section.
+ * v1 mounted the <Canvas> near the viewport and UNMOUNTED it when it
+ * scrolled away. Every unmount destroys the WebGL context and every
+ * remount recompiles every shader + rebuilds every buffer on the main
+ * thread. That was the flicker and the scroll jank.
  *
- *   const hostRef = useRef(null);
- *   const { near, epoch, onCreated } = useLazyCanvas(hostRef);
+ * v2 splits the old `near` flag into two:
  *
- *   <div ref={hostRef}>
- *     {near && <Canvas key={epoch} onCreated={onCreated} ... />}
- *   </div>
- *
- * near       true while the host is within `rootMargin` of the viewport
- * epoch      changes after a lost GL context; use it as the Canvas key so
- *            the canvas is rebuilt from scratch
- * onCreated  pass to <Canvas onCreated>; it watches for context loss
+ *   near   "has ever been near" — LATCHED true. Mount once, never
+ *          unmount. Context, compiled shaders and geometry live for
+ *          the whole session; re-entering a section costs 0.
+ *   inView "is near right now" — flips with the viewport AND tab
+ *          visibility. Use it to pause/resume render loops, so at
+ *          most ~2 canvases ever draw per frame.
  */
 
 const RETRY_WINDOW_MS = 8000;
 const MAX_RETRIES = 3;
 
-export default function useLazyCanvas(ref, { rootMargin = "400px 0px" } = {}) {
-  const [near, setNear] = useState(false);
+export default function useLazyCanvas(ref, { rootMargin = "600px 0px" } = {}) {
+  const [near, setNear] = useState(false); // latched mount flag
+  const [inView, setInView] = useState(false); // live run flag
+  const [tabHidden, setTabHidden] = useState(
+    () => typeof document !== "undefined" && document.hidden,
+  );
   const [epoch, setEpoch] = useState(0);
   const retries = useRef([]);
 
@@ -36,11 +36,19 @@ export default function useLazyCanvas(ref, { rootMargin = "400px 0px" } = {}) {
 
     if (typeof IntersectionObserver === "undefined") {
       setNear(true);
+      setInView(true);
       return undefined;
     }
 
     const observer = new IntersectionObserver(
-      ([entry]) => setNear(entry.isIntersecting),
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setNear(true); // latch: once mounted, stay mounted
+          setInView(true);
+        } else {
+          setInView(false); // just pause the loop
+        }
+      },
       { rootMargin },
     );
 
@@ -48,18 +56,22 @@ export default function useLazyCanvas(ref, { rootMargin = "400px 0px" } = {}) {
     return () => observer.disconnect();
   }, [ref, rootMargin]);
 
+  useEffect(() => {
+    const onVisibility = () => setTabHidden(document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement;
 
     const onLost = (event) => {
-      // keep the browser from giving up on the context for good
       event.preventDefault();
-
-      // rebuild the canvas, but never in a tight loop
       const now = Date.now();
-      retries.current = retries.current.filter((t) => now - t < RETRY_WINDOW_MS);
+      retries.current = retries.current.filter(
+        (t) => now - t < RETRY_WINDOW_MS,
+      );
       if (retries.current.length >= MAX_RETRIES) return;
-
       retries.current.push(now);
       setTimeout(() => setEpoch((e) => e + 1), 250);
     };
@@ -67,5 +79,5 @@ export default function useLazyCanvas(ref, { rootMargin = "400px 0px" } = {}) {
     canvas.addEventListener("webglcontextlost", onLost, false);
   }, []);
 
-  return { near, epoch, onCreated };
+  return { near, inView: inView && !tabHidden, epoch, onCreated };
 }
