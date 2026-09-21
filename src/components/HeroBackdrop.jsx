@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
-import useLazyCanvas from "./useLazyCanvas";
 
 /* =========================================================
    HERO BACKDROP
@@ -1003,24 +1002,18 @@ export default function HeroBackdrop({ variant = "hero", className }) {
     [],
   );
 
-  // The WebGL canvas only exists while this element is near the viewport
-  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
-
   return (
     <div
       className={className ?? "hero-backdrop"}
       ref={hostRef}
       aria-hidden="true"
     >
-      {near && (
-        <Canvas
-          key={epoch}
-          onCreated={onCreated}
-          dpr={ambient ? [1, 1.25] : [1, 1.5]}
-          gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
-          camera={{ position: [0, 0, 32], fov: 50, near: 0.1, far: 200 }}
-          frameloop={reduced ? "demand" : "always"}
-        >
+      <Canvas
+        dpr={ambient ? [1, 1.15] : [1, 1.35]}
+        gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
+        camera={{ position: [0, 0, 32], fov: 50, near: 0.1, far: 200 }}
+        frameloop={reduced ? "demand" : "always"}
+      >
           <Scene
             cfg={cfg}
             dim={ambient ? 0.7 : TEXT_DIM}
@@ -1029,7 +1022,6 @@ export default function HeroBackdrop({ variant = "hero", className }) {
             containerRef={hostRef}
           />
         </Canvas>
-      )}
     </div>
   );
 }
