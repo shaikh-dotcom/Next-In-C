@@ -17,6 +17,7 @@ import {
 import * as THREE from "three";
 import ScrambleText from "./ScrambleText";
 import SectionStars from "./SectionStars";
+import useLazyCanvas from "./useLazyCanvas";
 import "./BuildNext.css";
 
 /*
@@ -1234,11 +1235,15 @@ export default function BuildNext() {
   const hostRef = useRef(null);
 
   const [width, setWidth] = useState(0);
-  const [active, setActive] = useState(false);
   const [hovered, setHovered] = useState(-1);
 
   const art = useArtwork();
   const webgl = useMemo(supportsWebGL, []);
+  const { near, epoch, onCreated, ready } = useLazyCanvas(hostRef, {
+    id: "build-next",
+    rootMargin: "320px 0px",
+    priority: 20,
+  });
   const reduced = useMemo(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
@@ -1252,20 +1257,6 @@ export default function BuildNext() {
       const entry = entries[0];
       if (entry) setWidth(Math.floor(entry.contentRect.width));
     });
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Only render while on screen (Hero and Earth already run canvases)
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return undefined;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setActive(entry.isIntersecting),
-      { rootMargin: "150px" },
-    );
 
     observer.observe(el);
     return () => observer.disconnect();
@@ -1300,13 +1291,15 @@ export default function BuildNext() {
       </div>
 
       <div className="bn-stage" ref={hostRef}>
-        {layout && webgl && (
-          <div className="bn-canvas" style={{ height }}>
+        {layout && webgl && near && (
+          <div className={`bn-canvas${ready ? " is-ready" : ""}`} style={{ height }}>
             <Canvas
-              dpr={[1, 1.75]}
+              key={epoch}
+              onCreated={onCreated}
+              dpr={[1, 1.5]}
               camera={{ fov: FOV, position: [0, 8, 20], near: 0.1, far: 200 }}
-              gl={{ alpha: true, antialias: true }}
-              frameloop={active ? (reduced ? "demand" : "always") : "never"}
+              gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+              frameloop={reduced ? "demand" : "always"}
             >
               {art && (
                 <Scene
