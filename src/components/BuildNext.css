@@ -13,7 +13,8 @@
 
   padding: 110px 5vw 80px;
 
-  background: var(--section-bg);
+  /* transparent — the fixed SiteBackdrop ambient WebGL layer shows through */
+  background: transparent;
 
   color: #e9faff;
 }
