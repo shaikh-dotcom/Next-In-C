@@ -401,7 +401,11 @@ export default function TechGlass({ items }) {
   const [avail, setAvail] = useState(0);
 
   // WebGL canvas only exists while the cards are near the viewport
-  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
+  const { near, epoch, onCreated, ready } = useLazyCanvas(hostRef, {
+    id: "hero-tech-glass",
+    rootMargin: "320px 0px",
+    priority: 30,
+  });
 
   const textures = useCardTextures(items);
   const webgl = useMemo(supportsWebGL, []);
@@ -457,7 +461,7 @@ export default function TechGlass({ items }) {
           style={{ width: layout.gridW, height: layout.gridH }}
         >
           {webgl && near && (
-            <div className="hero-tech-canvas" aria-hidden="true">
+            <div className={`hero-tech-canvas${ready ? " is-ready" : ""}`} aria-hidden="true">
               <Canvas
                 key={epoch}
                 onCreated={onCreated}
