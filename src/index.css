@@ -6,30 +6,5 @@
     linear-gradient(180deg, #030408 0%, #06070e 50%, #020408 100%);
 }
 
-.section-stars {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-
-  /* fade in/out at the section edges so neighbouring sections blend
-     into each other instead of meeting on a hard line */
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 90px,
-    #000 calc(100% - 90px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 90px,
-    #000 calc(100% - 90px),
-    transparent 100%
-  );
-}
-
-.section-stars canvas {
-  display: block;
-}
+.section-stars{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 50% 40%,rgba(96,162,210,.05),transparent 48%),radial-gradient(circle at 18% 72%,rgba(255,32,82,.035),transparent 42%);opacity:.9;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 90px,#000 calc(100% - 90px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 90px,#000 calc(100% - 90px),transparent 100%)}
+\nhtml{scroll-behavior:smooth;scrollbar-gutter:stable}body{margin:0;min-width:320px;overflow-x:clip;text-rendering:optimizeLegibility}@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}\n
