@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
+import useLazyCanvas from "./useLazyCanvas";
 
 /* =========================================================
    HERO BACKDROP
@@ -46,30 +47,17 @@ const CORE_ROTATION_SPEED = 1.08; // rad / sec
 const FLOW_SPEED = 0.09;
 
 const TIERS = {
-  low: {
-    core: 1800,
-    strands: 14,
-    per: 100,
-    dust: 500,
-    bokeh: 8,
-    orbits: false,
-  },
-  mid: {
-    core: 3400,
-    strands: 20,
-    per: 190,
-    dust: 900,
-    bokeh: 16,
-    orbits: true,
-  },
-  high: {
-    core: 5200,
-    strands: 28,
-    per: 320,
-    dust: 1500,
-    bokeh: 26,
-    orbits: true,
-  },
+  low: { core: 1800, strands: 14, per: 100, dust: 500, bokeh: 8, orbits: false },
+  mid: { core: 3400, strands: 20, per: 190, dust: 900, bokeh: 16, orbits: true },
+  high: { core: 5200, strands: 28, per: 320, dust: 1500, bokeh: 26, orbits: true },
+};
+
+// "ambient" is the quiet version used behind every section below the
+// hero (see SectionStars.jsx): haze, dust, bokeh and bloom only.
+const AMBIENT_TIERS = {
+  low: { core: 0, strands: 0, per: 0, dust: 300, bokeh: 4, orbits: false },
+  mid: { core: 0, strands: 0, per: 0, dust: 550, bokeh: 8, orbits: false },
+  high: { core: 0, strands: 0, per: 0, dust: 800, bokeh: 12, orbits: false },
 };
 
 function getTier() {
@@ -141,6 +129,7 @@ const atmosphereFrag = /* glsl */ `
   uniform vec2 uPointer;
   uniform vec3 uCool;
   uniform vec3 uWarm;
+  uniform float uHero;
   varying vec2 vUv;
 
   float hash(vec2 p) {
@@ -194,12 +183,12 @@ const atmosphereFrag = /* glsl */ `
     vec3 col = vec3(0.0006, 0.0008, 0.0018);
     col += uCool * cool * (0.30 + 1.15 * smoke) * 0.05;
     col += uWarm * warm * (0.30 + 1.25 * smoke) * 0.07;
-    col += vec3(0.34, 0.03, 0.10) * core * (0.35 + smoke) * 0.035;
+    col += vec3(0.34, 0.03, 0.10) * core * (0.35 + smoke) * 0.035 * uHero;
 
     // Horizontal light streak the streams feed into
     float streak = exp(-abs(p.y - 0.03) * 34.0) * exp(-abs(p.x) * 1.15);
     vec3 streakCol = mix(uCool, uWarm, smoothstep(-0.6, 0.6, p.x));
-    col += streakCol * streak * (0.5 + smoke) * 0.05;
+    col += streakCol * streak * (0.5 + smoke) * 0.05 * uHero;
 
     // Faint horizon glow along the bottom edge (sits behind the cards)
     float floorGlow = exp(-vUv.y * 5.5) * (0.4 + 0.8 * smoke);
@@ -221,6 +210,7 @@ function Atmosphere({ shared }) {
       uWarm: shared.uWarm,
       uRes: shared.uRes,
       uPointer: shared.uPointerSoft,
+      uHero: shared.uHero,
     }),
     [shared],
   );
@@ -262,11 +252,7 @@ function buildStreams(strands, per) {
       const ss = strands > 1 ? (s / (strands - 1)) * 2 - 1 : 0;
       const zr = (Math.random() - 0.5) * 22;
 
-      const p0 = [
-        side * (38 + Math.random() * 4),
-        ss * (10.5 + Math.random() * 2.5),
-        zr,
-      ];
+      const p0 = [side * (38 + Math.random() * 4), ss * (10.5 + Math.random() * 2.5), zr];
       const p1 = [side * (24 + Math.random() * 4), p0[1] * 0.9, zr * 0.8];
       const p2 = [
         side * (9 + Math.random() * 3),
@@ -295,9 +281,7 @@ function buildStreams(strands, per) {
         const big = Math.random() < 0.035;
         R[o4] = (i + Math.random() * 0.6) / per;
         R[o4 + 1] = 0.7 + Math.random() * 0.6;
-        R[o4 + 2] = big
-          ? 0.42 + Math.random() * 0.22
-          : 0.09 + Math.random() * Math.random() * 0.24;
+        R[o4 + 2] = big ? 0.42 + Math.random() * 0.22 : 0.09 + Math.random() * Math.random() * 0.24;
         R[o4 + 3] = side > 0 ? 1 : 0;
 
         J[o3] = (Math.random() - 0.5) * 0.14;
@@ -406,10 +390,7 @@ function Streams({ shared, strands, per }) {
   return (
     <points frustumCulled={false}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[data.position, 3]}
-        />
+        <bufferAttribute attach="attributes-position" args={[data.position, 3]} />
         <bufferAttribute attach="attributes-aP0" args={[data.P0, 3]} />
         <bufferAttribute attach="attributes-aP1" args={[data.P1, 3]} />
         <bufferAttribute attach="attributes-aP2" args={[data.P2, 3]} />
@@ -467,8 +448,7 @@ function genTorusKnot(count) {
 
     pts[i * 3] = r * Math.cos(p * t) + (Math.random() - 0.5) * 1.1;
     pts[i * 3 + 1] = r * Math.sin(p * t) + (Math.random() - 0.5) * 1.1;
-    pts[i * 3 + 2] =
-      tubeR * Math.sin(q * t) * 2.2 + (Math.random() - 0.5) * 1.1;
+    pts[i * 3 + 2] = tubeR * Math.sin(q * t) * 2.2 + (Math.random() - 0.5) * 1.1;
   }
 
   return pts;
@@ -523,8 +503,7 @@ function genCoreColors(count) {
   return out;
 }
 
-const easeInOutCubic = (t) =>
-  t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 const coreVert = /* glsl */ `
   ${GLSL_COMMON}
@@ -583,18 +562,12 @@ function Core({ shared, count, reduced }) {
   const sizes = useMemo(() => {
     const a = new Float32Array(count);
     for (let i = 0; i < count; i += 1) {
-      a[i] =
-        Math.random() < 0.05
-          ? 1.0 + Math.random() * 0.4
-          : 0.34 + Math.random() * 0.3;
+      a[i] = Math.random() < 0.05 ? 1.0 + Math.random() * 0.4 : 0.34 + Math.random() * 0.3;
     }
     return a;
   }, [count]);
 
-  const seeds = useMemo(
-    () => Float32Array.from({ length: count }, Math.random),
-    [count],
-  );
+  const seeds = useMemo(() => Float32Array.from({ length: count }, Math.random), [count]);
 
   const fromAttr = useRef(shapes[0].slice());
   const toAttr = useRef(shapes[0].slice());
@@ -640,10 +613,7 @@ function Core({ shared, count, reduced }) {
       <points ref={pointsRef} frustumCulled={false}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[shapes[0], 3]} />
-          <bufferAttribute
-            attach="attributes-aFrom"
-            args={[fromAttr.current, 3]}
-          />
+          <bufferAttribute attach="attributes-aFrom" args={[fromAttr.current, 3]} />
           <bufferAttribute attach="attributes-aTo" args={[toAttr.current, 3]} />
           <bufferAttribute attach="attributes-aColor" args={[colors, 3]} />
           <bufferAttribute attach="attributes-aSize" args={[sizes, 1]} />
@@ -753,8 +723,7 @@ function Ring({ shared, cfg, reduced }) {
   );
 
   useFrame((_, delta) => {
-    if (ref.current && !reduced)
-      ref.current.rotation.z += Math.min(delta, 0.05) * cfg.spin;
+    if (ref.current && !reduced) ref.current.rotation.z += Math.min(delta, 0.05) * cfg.spin;
   });
 
   return (
@@ -788,8 +757,7 @@ function buildDust(count, sizeMin, sizeMax, spread) {
     position[i * 3 + 2] = -spread[2] * 0.6 + Math.random() * spread[2];
 
     D[i * 4] = Math.random();
-    D[i * 4 + 1] =
-      sizeMin + Math.random() * Math.random() * (sizeMax - sizeMin);
+    D[i * 4 + 1] = sizeMin + Math.random() * Math.random() * (sizeMax - sizeMin);
     D[i * 4 + 2] = Math.random();
     D[i * 4 + 3] = 0.5 + Math.random();
 
@@ -882,10 +850,7 @@ function Specks({ shared, count, sizeMin, sizeMax, bokeh }) {
   return (
     <points frustumCulled={false}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[data.position, 3]}
-        />
+        <bufferAttribute attach="attributes-position" args={[data.position, 3]} />
         <bufferAttribute attach="attributes-aD" args={[data.D, 4]} />
         <bufferAttribute attach="attributes-aC" args={[data.C, 3]} />
       </bufferGeometry>
@@ -905,7 +870,7 @@ function Specks({ shared, count, sizeMin, sizeMax, bokeh }) {
    SCENE
    ========================================================= */
 
-function Scene({ cfg, reduced, containerRef }) {
+function Scene({ cfg, dim, hero, reduced, containerRef }) {
   const shared = useMemo(() => {
     const common = {
       uTime: { value: reduced ? 14 : 0 },
@@ -915,7 +880,7 @@ function Scene({ cfg, reduced, containerRef }) {
       uMouse: { value: new THREE.Vector2(-10, -10) },
       uTextC: { value: new THREE.Vector2(...TEXT_CENTER) },
       uTextS: { value: new THREE.Vector2(...TEXT_SIZE) },
-      uDim: { value: TEXT_DIM },
+      uDim: { value: dim },
     };
 
     return {
@@ -926,9 +891,10 @@ function Scene({ cfg, reduced, containerRef }) {
       uWarm: { value: new THREE.Color(...WARM) },
       uBlush: { value: new THREE.Color(...BLUSH) },
       uRes: { value: new THREE.Vector2(1920, 1080) },
+      uHero: { value: hero },
       uPointerSoft: { value: new THREE.Vector2(0, 0) },
     };
-  }, [reduced]);
+  }, [reduced, dim, hero]);
 
   const target = useRef({ x: 0, y: 0, mx: -10, my: -10 });
   const smooth = useRef({ x: 0, y: 0 });
@@ -1002,22 +968,13 @@ function Scene({ cfg, reduced, containerRef }) {
     <>
       <Atmosphere shared={shared} />
 
-      <Specks
-        shared={shared}
-        count={cfg.bokeh}
-        sizeMin={2.5}
-        sizeMax={8}
-        bokeh
-      />
+      <Specks shared={shared} count={cfg.bokeh} sizeMin={2.5} sizeMax={8} bokeh />
       <Specks shared={shared} count={cfg.dust} sizeMin={0.2} sizeMax={1.0} />
 
-      {cfg.orbits &&
-        RINGS.map((ring) => (
-          <Ring key={ring.R} shared={shared} cfg={ring} reduced={reduced} />
-        ))}
+      {cfg.orbits && RINGS.map((ring) => <Ring key={ring.R} shared={shared} cfg={ring} reduced={reduced} />)}
 
-      <Streams shared={shared} strands={cfg.strands} per={cfg.per} />
-      <Core shared={shared} count={cfg.core} reduced={reduced} />
+      {cfg.strands > 0 && <Streams shared={shared} strands={cfg.strands} per={cfg.per} />}
+      {cfg.core > 0 && <Core shared={shared} count={cfg.core} reduced={reduced} />}
 
       <EffectComposer multisampling={0}>
         <Bloom
@@ -1036,46 +993,43 @@ function Scene({ cfg, reduced, containerRef }) {
    PUBLIC COMPONENT
    ========================================================= */
 
-export default function HeroBackdrop() {
+export default function HeroBackdrop({ variant = "hero", className }) {
   const hostRef = useRef(null);
-  const [active, setActive] = useState(true);
 
-  const cfg = useMemo(() => TIERS[getTier()], []);
+  const ambient = variant === "ambient";
+  const cfg = useMemo(() => (ambient ? AMBIENT_TIERS : TIERS)[getTier()], [ambient]);
   const reduced = useMemo(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
   );
 
-  // Stop rendering once the hero has scrolled away
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return undefined;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setActive(entry.isIntersecting),
-      {
-        rootMargin: "80px",
-      },
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  // The WebGL canvas only exists while this element is near the viewport
+  const { near, epoch, onCreated } = useLazyCanvas(hostRef);
 
   return (
-    <div className="hero-backdrop" ref={hostRef} aria-hidden="true">
-      <Canvas
-        dpr={[1, 1.5]}
-        gl={{
-          antialias: false,
-          alpha: false,
-          powerPreference: "high-performance",
-        }}
-        camera={{ position: [0, 0, 32], fov: 50, near: 0.1, far: 200 }}
-        frameloop={active ? (reduced ? "demand" : "always") : "never"}
-      >
-        <Scene cfg={cfg} reduced={reduced} containerRef={hostRef} />
-      </Canvas>
+    <div
+      className={className ?? "hero-backdrop"}
+      ref={hostRef}
+      aria-hidden="true"
+    >
+      {near && (
+        <Canvas
+          key={epoch}
+          onCreated={onCreated}
+          dpr={ambient ? [1, 1.25] : [1, 1.5]}
+          gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
+          camera={{ position: [0, 0, 32], fov: 50, near: 0.1, far: 200 }}
+          frameloop={reduced ? "demand" : "always"}
+        >
+          <Scene
+            cfg={cfg}
+            dim={ambient ? 0.7 : TEXT_DIM}
+            hero={ambient ? 0.25 : 1}
+            reduced={reduced}
+            containerRef={hostRef}
+          />
+        </Canvas>
+      )}
     </div>
   );
 }

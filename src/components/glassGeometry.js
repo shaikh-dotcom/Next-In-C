@@ -1,179 +1,149 @@
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
-import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 /*
- * Geometry for the Mini Me glass scene.
+ * Geometry for the glass pieces.
  *
- *   buildLogoGeometry  the two logo paths, extruded with a rounded bevel
- *   slabGeometry       a thick rounded-square glass tile
- *   lensGeometry       a round glass cabochon (flat back, domed front)
+ *   buildLogoGeometry   the Mini Me mark, extruded and bevelled
+ *   slabGeometry        a rounded slab with bevelled edges
+ *   lensGeometry        a round puck with a domed front
  *
- * Kept out of the component so the (slightly fiddly) logo tessellation
- * can be tested on its own.
+ * All are centred on the origin and face +Z.
  */
+
+// Logo path data lives in MiniMeLogo.jsx as raw path units inside
+// `translate(0,844) scale(.1,-.1)`, i.e. on a 1024 x 844 viewBox.
+const LOGO_TRANSFORM = "translate(0,844) scale(0.1,-0.1)";
+const LOGO_VIEWBOX_H = 844;
+
+// How far the bevel grows the outline, in viewBox px. MiniMeGlass
+// measures the finished logo at 724 px wide (bevel included).
+const LOGO_BEVEL = 20.2;
 
 /* ---------------------------------------------------------
    LOGO
-   The logo paths come from a potrace export: y-up coordinates in
-   1/10 px, normally drawn through translate(0,H) scale(.1,-.1).
-   Read raw, that y-up data is already the orientation three.js
-   wants, so we only need to scale by 0.1 (no flip, no inverted
-   normals).
 --------------------------------------------------------- */
-const TRACE_SCALE = 0.1;
-
-function signedArea(pts) {
-  let a = 0;
-  for (let i = 0; i < pts.length; i += 1) {
-    const p = pts[i];
-    const q = pts[(i + 1) % pts.length];
-    a += p.x * q.y - q.x * p.y;
-  }
-  return a / 2;
-}
-
-function loopPoints(subPath) {
-  const out = [];
-
-  subPath.getPoints(10).forEach((p) => {
-    const q = new THREE.Vector2(p.x * TRACE_SCALE, p.y * TRACE_SCALE);
-    const last = out[out.length - 1];
-    if (!last || last.distanceTo(q) > 0.05) out.push(q);
-  });
-
-  // the loop is closed: drop the duplicated end point
-  if (out.length > 2 && out[0].distanceTo(out[out.length - 1]) < 0.05) {
-    out.pop();
-  }
-
-  return out;
-}
-
-/*
- * Every path in the logo is "one big outline plus counters". Instead of
- * trusting the winding order of the trace, the biggest loop is the
- * outline and the rest are holes.
- */
-export function buildLogoShapes(pathData) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg">${pathData
+export function buildLogoGeometry(paths, worldWidth, { depth = 26, curveDivisions = 10 } = {}) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 ${LOGO_VIEWBOX_H}"><g transform="${LOGO_TRANSFORM}">${paths
     .map((d) => `<path d="${d}"/>`)
-    .join("")}</svg>`;
+    .join("")}</g></svg>`;
 
-  const parsed = new SVGLoader().parse(svg);
+  const data = new SVGLoader().parse(svg);
 
-  return parsed.paths.map((path) => {
-    const loops = path.subPaths
-      .map(loopPoints)
-      .filter((pts) => pts.length > 2)
-      .map((pts) => ({ pts, area: Math.abs(signedArea(pts)) }))
-      .sort((a, b) => b.area - a.area);
+  // SVG space is y-down. Mirror every outline into y-up (reversing the
+  // point order to keep the winding) so the extrusion faces the right way.
+  const flip = (pts) => pts.map((p) => new THREE.Vector2(p.x, -p.y)).reverse();
 
-    const shape = new THREE.Shape(loops[0].pts);
-    loops.slice(1).forEach((l) => shape.holes.push(new THREE.Path(l.pts)));
-    return shape;
+  const shapes = [];
+
+  data.paths.forEach((shapePath) => {
+    shapePath.toShapes(true).forEach((shape) => {
+      const { shape: outline, holes } = shape.extractPoints(curveDivisions);
+
+      const s = new THREE.Shape(flip(outline));
+      s.holes = holes.map((h) => new THREE.Path(flip(h)));
+      shapes.push(s);
+    });
   });
-}
 
-export function buildLogoGeometry(pathData, targetWidth) {
-  const shapes = buildLogoShapes(pathData);
-
-  // bevel values are in trace pixels (the logo is roughly 1000 wide)
-  const geo = new THREE.ExtrudeGeometry(shapes, {
-    depth: 100,
+  const geometry = new THREE.ExtrudeGeometry(shapes, {
+    depth,
     bevelEnabled: true,
-    bevelThickness: 30,
-    bevelSize: 20,
+    bevelThickness: 18,
+    bevelSize: LOGO_BEVEL,
+    bevelOffset: 0,
     bevelSegments: 6,
-    steps: 1,
+    curveSegments: 12,
   });
 
-  geo.center();
-  geo.computeBoundingBox();
+  // centre on the bounding box, then scale so the whole thing
+  // (bevel included) is `worldWidth` wide
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const cx = (box.min.x + box.max.x) / 2;
+  const cy = (box.min.y + box.max.y) / 2;
+  const cz = (box.min.z + box.max.z) / 2;
+  const k = worldWidth / (box.max.x - box.min.x);
 
-  const width = geo.boundingBox.max.x - geo.boundingBox.min.x;
-  const k = targetWidth / width;
-  geo.scale(k, k, k);
+  geometry.translate(-cx, -cy, -cz);
+  geometry.scale(k, k, k);
+  geometry.computeVertexNormals();
 
-  // smooth across the bevel, keep real creases sharp
-  const creased = toCreasedNormals(geo, 0.55);
-  geo.dispose();
-  return creased;
+  return geometry;
 }
 
 /* ---------------------------------------------------------
-   SLAB
+   SLAB   width x height x depth, corner radius r, edge bevel
 --------------------------------------------------------- */
-function roundedRect(w, h, r) {
-  const s = new THREE.Shape();
+export function slabGeometry(width, height, radius, depth, bevel) {
+  const w = width - bevel * 2;
+  const h = height - bevel * 2;
+  const r = Math.max(0.0001, Math.min(radius - bevel, w / 2, h / 2));
+
   const x = -w / 2;
   const y = -h / 2;
 
-  s.moveTo(x + r, y);
-  s.lineTo(x + w - r, y);
-  s.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
-  s.lineTo(x + w, y + h - r);
-  s.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
-  s.lineTo(x + r, y + h);
-  s.absarc(x + r, y + h - r, r, Math.PI / 2, Math.PI, false);
-  s.lineTo(x, y + r);
-  s.absarc(x + r, y + r, r, Math.PI, Math.PI * 1.5, false);
+  const shape = new THREE.Shape();
+  shape.moveTo(x + r, y);
+  shape.lineTo(x + w - r, y);
+  shape.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
+  shape.lineTo(x + w, y + h - r);
+  shape.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
+  shape.lineTo(x + r, y + h);
+  shape.absarc(x + r, y + h - r, r, Math.PI / 2, Math.PI, false);
+  shape.lineTo(x, y + r);
+  shape.absarc(x + r, y + r, r, Math.PI, Math.PI * 1.5, false);
 
-  return s;
-}
-
-/*
- * A thick tile with a big corner radius in the face plane and a small
- * rounded bevel on the edges. (drei's RoundedBox ties both radii
- * together, which would make the corners too tight.)
- */
-export function slabGeometry(w, h, cornerRadius, depth, bevel) {
-  const shape = roundedRect(w - 2 * bevel, h - 2 * bevel, cornerRadius - bevel);
-
-  const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: depth - 2 * bevel,
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: Math.max(0.0001, depth - bevel * 2),
     bevelEnabled: true,
     bevelThickness: bevel,
     bevelSize: bevel,
+    bevelOffset: 0,
     bevelSegments: 8,
-    curveSegments: 32,
+    curveSegments: 24,
   });
 
-  geo.center();
-
-  const creased = toCreasedNormals(geo, 0.6);
-  geo.dispose();
-  return creased;
+  geometry.translate(0, 0, -(depth - bevel * 2) / 2);
+  return geometry;
 }
 
 /* ---------------------------------------------------------
-   LENS
-   Lathe profile, bottom to top so the normals face outward:
-   flat back -> small rounded corner -> straight wall -> dome.
-   The axis is +Y; the mesh is rotated so the dome faces the camera.
+   LENS   a puck: flat back, straight side, domed (spherical) front
+   The axis is Y, so rotate it by +90deg about X to face the camera.
 --------------------------------------------------------- */
-export function lensGeometry(radius, depth, dome, corner = 0.045) {
+export function lensGeometry(radius, depth, dome, segments = 72) {
   const pts = [];
+  const back = -depth / 2;
+  const edge = Math.min(0.02, radius * 0.12);
 
-  pts.push(new THREE.Vector2(0, -depth));
-  pts.push(new THREE.Vector2(radius - corner, -depth));
-
-  for (let i = 1; i <= 6; i += 1) {
-    const a = (i / 6) * (Math.PI / 2);
+  // flat back with a small rounded corner
+  pts.push(new THREE.Vector2(0, back));
+  pts.push(new THREE.Vector2(radius - edge, back));
+  for (let i = 1; i <= 4; i += 1) {
+    const a = (i / 4) * (Math.PI / 2);
     pts.push(
       new THREE.Vector2(
-        radius - corner + Math.sin(a) * corner,
-        -depth + corner - Math.cos(a) * corner,
+        radius - edge + Math.sin(a) * edge,
+        back + edge - Math.cos(a) * edge,
       ),
     );
   }
 
-  pts.push(new THREE.Vector2(radius, 0));
+  // straight side up to the rim of the dome
+  const rim = depth / 2;
+  pts.push(new THREE.Vector2(radius, rim));
 
-  for (let i = 1; i <= 28; i += 1) {
-    const a = (i / 28) * (Math.PI / 2);
-    pts.push(new THREE.Vector2(radius * Math.cos(a), dome * Math.sin(a)));
+  // spherical cap
+  const Rs = (radius * radius + dome * dome) / (2 * dome);
+  const cy = rim + dome - Rs;
+  const a0 = Math.asin(Math.min(1, radius / Rs));
+  const steps = 24;
+
+  for (let i = 1; i <= steps; i += 1) {
+    const a = a0 * (1 - i / steps);
+    pts.push(new THREE.Vector2(Rs * Math.sin(a), cy + Rs * Math.cos(a)));
   }
 
-  return new THREE.LatheGeometry(pts, 72);
+  return new THREE.LatheGeometry(pts, segments);
 }

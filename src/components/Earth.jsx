@@ -8,10 +8,10 @@ import React, {
 import Globe from "react-globe.gl";
 import { scaleSequentialSqrt } from "d3-scale";
 import { interpolateYlOrRd } from "d3-scale-chromatic";
-import { Gauge, Network, Radar, ShieldCheck } from "lucide-react";
+import { Activity, Eye, Network, Timer } from "lucide-react";
 import ScrambleText from "./ScrambleText";
-import EarthStats from "./EarthStats";
 import SectionStars from "./SectionStars";
+import EarthStats from "./EarthStats";
 import "./Earth.css";
 
 /*
@@ -48,9 +48,9 @@ const FEATURED_NODES = [
 
 const STATS = [
   { value: "6", label: "Active nodes", icon: Network },
-  { value: "11", unit: "ms", label: "Average latency", icon: Gauge },
-  { value: "99.98", unit: "%", label: "Uptime", icon: ShieldCheck },
-  { value: "24/7", label: "Monitoring", icon: Radar },
+  { value: "11", unit: "ms", label: "Average latency", icon: Timer },
+  { value: "99.98", unit: "%", label: "Uptime", icon: Activity },
+  { value: "24/7", label: "Monitoring", icon: Eye },
 ];
 
 const LOCATIONS = [
@@ -212,9 +212,11 @@ export default function Earth() {
   return (
     <section className="earth-section">
       <SectionStars />
+
       <div className="earth-layout">
         {/* Copy column */}
         <div className="earth-copy">
+          <div className="earth-eyebrow">// DISTRIBUTED GLOBAL ROUTING</div>
           <h2 className="earth-heading" data-text={HEADING_TEXT}>
             <span className="earth-heading-text">
               <ScrambleText text={HEADING_TEXT} />

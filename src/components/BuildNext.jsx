@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import useLazyCanvas from "./useLazyCanvas";
 import {
   Edges,
   Environment,
@@ -171,8 +170,7 @@ const TEX = 512;
 const TAU = Math.PI * 2;
 const PAD = 26;
 
-const MONO =
-  '"JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace';
+const MONO = '"JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace';
 const SANS = 'Inter, "Segoe UI", system-ui, sans-serif';
 const DISPLAY = 'Syne, Inter, "Segoe UI", sans-serif';
 
@@ -593,10 +591,7 @@ function paintWave(ctx, item, i) {
     const env = Math.pow(Math.sin((Math.PI * k) / (N - 1)), 0.8);
     const h =
       (26 +
-        118 *
-          Math.abs(
-            Math.sin(k * 0.55) * Math.sin(k * 0.21 + 1.3) + 0.35 * r(),
-          )) *
+        118 * Math.abs(Math.sin(k * 0.55) * Math.sin(k * 0.21 + 1.3) + 0.35 * r())) *
       (0.35 + 0.65 * env);
 
     ctx.fillStyle = mix(a, item.accent2, k / (N - 1));
@@ -991,9 +986,7 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
     g.scale.setScalar(Math.max(0.001, e) * (1 + s.hover * 0.05));
 
     const b =
-      0.92 +
-      s.hover * 0.45 +
-      (reduced ? 0 : Math.sin(t * 2.2 + index * 2) * 0.04);
+      0.92 + s.hover * 0.45 + (reduced ? 0 : Math.sin(t * 2.2 + index * 2) * 0.04);
     mats.current.forEach((m) => m && m.color.setScalar(b));
 
     if (poolMat.current) poolMat.current.opacity = (0.5 + s.hover * 0.5) * p;
@@ -1016,36 +1009,16 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
         <mesh geometry={BOX} material={BODY_MAT} scale={CUBE} />
 
         {BARS.map((b, k) => (
-          <mesh
-            key={k}
-            geometry={BOX}
-            material={FRAME_MAT}
-            position={b.p}
-            scale={b.s}
-          />
+          <mesh key={k} geometry={BOX} material={FRAME_MAT} position={b.p} scale={b.s} />
         ))}
 
         {CORNERS.map((p, k) => (
-          <mesh
-            key={k}
-            geometry={BOX}
-            material={FRAME_MAT}
-            position={p}
-            scale={0.11}
-          />
+          <mesh key={k} geometry={BOX} material={FRAME_MAT} position={p} scale={0.11} />
         ))}
 
         {/* Face toward the right of the screen (+Z) */}
-        <mesh
-          geometry={PLANE}
-          position={[0, 0, HALF + 0.004]}
-          scale={[SCREEN, SCREEN, 1]}
-        >
-          <meshBasicMaterial
-            ref={setMat(0)}
-            map={tex.right}
-            toneMapped={false}
-          />
+        <mesh geometry={PLANE} position={[0, 0, HALF + 0.004]} scale={[SCREEN, SCREEN, 1]}>
+          <meshBasicMaterial ref={setMat(0)} map={tex.right} toneMapped={false} />
         </mesh>
 
         {/* Face toward the left of the screen (-X) */}
@@ -1055,11 +1028,7 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
           rotation={[0, -Math.PI / 2, 0]}
           scale={[SCREEN, SCREEN, 1]}
         >
-          <meshBasicMaterial
-            ref={setMat(1)}
-            map={tex.left}
-            toneMapped={false}
-          />
+          <meshBasicMaterial ref={setMat(1)} map={tex.left} toneMapped={false} />
         </mesh>
 
         {/* Top face */}
@@ -1088,11 +1057,7 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
           rotation={[-Math.PI / 2, 0, 0]}
           scale={[0.9, 0.9, 1]}
         >
-          <meshBasicMaterial
-            ref={setMat(3)}
-            map={tex.icon}
-            toneMapped={false}
-          />
+          <meshBasicMaterial ref={setMat(3)} map={tex.icon} toneMapped={false} />
         </mesh>
       </group>
 
@@ -1151,24 +1116,35 @@ function Rig({ layout }) {
   return null;
 }
 
+// The floor only ever ADDS light (reflections) and leaves the canvas alpha
+// alone, so it can never show up as a dark rectangle over the section's
+// ambient stars: black adds nothing, the reflected cubes add their glow.
 function Floor() {
   return (
-    <mesh rotation-x={-Math.PI / 2}>
+    <mesh rotation-x={-Math.PI / 2} renderOrder={-1}>
       <planeGeometry args={[90, 90]} />
       <MeshReflectorMaterial
         blur={[260, 70]}
         resolution={512}
         mixBlur={1}
-        mixStrength={1.1}
+        mixStrength={2.4}
         mixContrast={1.1}
         roughness={1}
         depthScale={1}
         minDepthThreshold={0.35}
         maxDepthThreshold={1.4}
-        color="#05070c"
+        color="#000000"
         metalness={0.4}
         mirror={0.75}
-        envMapIntensity={0.3}
+        envMapIntensity={0}
+        transparent
+        depthWrite={false}
+        blending={THREE.CustomBlending}
+        blendEquation={THREE.AddEquation}
+        blendSrc={THREE.OneFactor}
+        blendDst={THREE.OneFactor}
+        blendSrcAlpha={THREE.ZeroFactor}
+        blendDstAlpha={THREE.OneFactor}
       />
     </mesh>
   );
@@ -1258,6 +1234,7 @@ export default function BuildNext() {
   const hostRef = useRef(null);
 
   const [width, setWidth] = useState(0);
+  const [active, setActive] = useState(false);
   const [hovered, setHovered] = useState(-1);
 
   const art = useArtwork();
@@ -1280,11 +1257,19 @@ export default function BuildNext() {
     return () => observer.disconnect();
   }, []);
 
-  // WebGL canvas only exists while this section is near the viewport AND
-  // wins a slot from the shared context budget (see useLazyCanvas.js) —
-  // previously this only toggled the render loop, never actually released
-  // the WebGL context, so BuildNext held a context for the entire session.
-  const { near, epoch, onCreated } = useLazyCanvas(hostRef, "build-next");
+  // Only render while on screen (Hero and Earth already run canvases)
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setActive(entry.isIntersecting),
+      { rootMargin: "150px" },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Hover cursor feedback is left to the cubes themselves; make sure a
   // stale hover never sticks when the pointer leaves the section.
@@ -1303,7 +1288,10 @@ export default function BuildNext() {
   return (
     <section className="bn-section" id="products">
       <SectionStars />
+
       <div className="bn-head">
+        <div className="bn-eyebrow">// FROM IDEAS TO IMPACT</div>
+
         <h2 className="bn-heading" data-text={HEADING}>
           <span className="bn-heading-text">
             <ScrambleText text={HEADING} />
@@ -1312,15 +1300,13 @@ export default function BuildNext() {
       </div>
 
       <div className="bn-stage" ref={hostRef}>
-        {layout && webgl && near && (
+        {layout && webgl && (
           <div className="bn-canvas" style={{ height }}>
             <Canvas
-              key={epoch}
-              onCreated={onCreated}
               dpr={[1, 1.75]}
               camera={{ fov: FOV, position: [0, 8, 20], near: 0.1, far: 200 }}
               gl={{ alpha: true, antialias: true }}
-              frameloop={reduced ? "demand" : "always"}
+              frameloop={active ? (reduced ? "demand" : "always") : "never"}
             >
               {art && (
                 <Scene

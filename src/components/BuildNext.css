@@ -11,7 +11,7 @@
 
   width: 100%;
 
-  padding: 60px 5vw 50px;
+  padding: 110px 5vw 80px;
 
   background: var(--section-bg);
 
@@ -32,6 +32,17 @@
   margin: 0 auto;
 
   text-align: center;
+}
+
+.bn-eyebrow {
+  margin-bottom: 12px;
+
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+
+  color: #cfa9b2;
 }
 
 .bn-heading {
@@ -124,13 +135,7 @@
       #000 93%,
       transparent 100%
     ),
-    linear-gradient(
-      to bottom,
-      transparent 0,
-      #000 7%,
-      #000 82%,
-      transparent 100%
-    );
+    linear-gradient(to bottom, transparent 0, #000 7%, #000 82%, transparent 100%);
   -webkit-mask-composite: source-in;
 
   mask-image:
@@ -141,13 +146,7 @@
       #000 93%,
       transparent 100%
     ),
-    linear-gradient(
-      to bottom,
-      transparent 0,
-      #000 7%,
-      #000 82%,
-      transparent 100%
-    );
+    linear-gradient(to bottom, transparent 0, #000 7%, #000 82%, transparent 100%);
   mask-composite: intersect;
 }
 

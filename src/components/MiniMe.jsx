@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Award } from "lucide-react";
 import ScrambleText from "./ScrambleText";
-import MiniMeLogo from "./MiniMeLogo";
 import MiniMeGlass from "./MiniMeGlass";
+import SectionStars from "./SectionStars";
 import "./MiniMe.css";
 
 /*
@@ -15,10 +15,10 @@ import "./MiniMe.css";
  * speed up, and its description appears. Left alone, the section
  * cycles through them.
  *
- * When WebGL is available, MiniMeGlass replaces the flat logo tile and the
- * three feature nodes with glass. The canvas below still owns the network and
- * shares node positions with it through `shared`; without WebGL it falls back
- * to the flat tile and nodes.
+ * The hub and the three feature agents are real glass (MiniMeGlass.jsx),
+ * drawn by a second WebGL canvas that sits over this one. This canvas keeps
+ * the network itself (links, packets, labels) and shares node positions and
+ * highlight amounts with the glass through the `shared` ref.
  *
  * Copy lives in FEATURES / CTA below. The three `detail` sentences are
  * placeholder wording, so replace them with what Mini Me really does.
@@ -69,32 +69,16 @@ const RELAY_ANGLES = [-Math.PI / 6, Math.PI / 2, (7 * Math.PI) / 6];
 // node index map: 0-2 features, 3-5 relays, 6-8 outer, 9-11 hub points
 const NODE_DEFS = (() => {
   const d = [];
-  FEATURE_ANGLES.forEach((ang, fi) =>
-    d.push({ kind: "f", ang, R: R_FEATURE, fi }),
-  );
+  FEATURE_ANGLES.forEach((ang, fi) => d.push({ kind: "f", ang, R: R_FEATURE, fi }));
   RELAY_ANGLES.forEach((ang, fi) => d.push({ kind: "r", ang, R: R_RELAY, fi }));
-  FEATURE_ANGLES.forEach((ang, fi) =>
-    d.push({ kind: "o", ang, R: R_OUTER, fi }),
-  );
+  FEATURE_ANGLES.forEach((ang, fi) => d.push({ kind: "o", ang, R: R_OUTER, fi }));
   FEATURE_ANGLES.forEach((ang, fi) => d.push({ kind: "h", ang, R: HUB_R, fi }));
   return d;
 })();
 
 const EDGES = [
-  ...[0, 1, 2].map((i) => ({
-    a: 9 + i,
-    b: i,
-    fi: [i],
-    rate: 0.75,
-    kind: "hub",
-  })),
-  ...[0, 1, 2].map((i) => ({
-    a: 6 + i,
-    b: i,
-    fi: [i],
-    rate: 0.5,
-    kind: "out",
-  })),
+  ...[0, 1, 2].map((i) => ({ a: 9 + i, b: i, fi: [i], rate: 0.75, kind: "hub" })),
+  ...[0, 1, 2].map((i) => ({ a: 6 + i, b: i, fi: [i], rate: 0.5, kind: "out" })),
   ...[0, 1, 2].flatMap((j) => [
     { a: 3 + j, b: j, fi: [j], rate: 0.22, kind: "mid" },
     { a: 3 + j, b: (j + 1) % 3, fi: [(j + 1) % 3], rate: 0.22, kind: "mid" },
@@ -123,14 +107,12 @@ function seeded(seed) {
   };
 }
 
-function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
+function AgentField({ active, highlight, onPick, reduced, shared }) {
   const canvasRef = useRef(null);
   const apiRef = useRef(null);
   const hiRef = useRef(highlight);
   const pickRef = useRef(onPick);
-  const glassRef = useRef(glass);
 
-  glassRef.current = glass;
   hiRef.current = highlight;
   pickRef.current = onPick;
 
@@ -151,6 +133,9 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
 
     const nodes = NODE_DEFS.map((d) => ({ ...d, x: 0, y: 0, a: 0, pulse: 0 }));
     const hi = [0, 0, 0];
+
+    shared.current.f = nodes.slice(0, 3);
+    shared.current.hi = hi;
     const packets = [];
     const flashes = [];
 
@@ -183,8 +168,7 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
       const sway = reduced ? 0 : Math.sin(time * 0.25) * 0.09;
 
       nodes.forEach((n, i) => {
-        const bob =
-          reduced || n.kind === "h" ? 0 : Math.sin(time * 0.8 + i * 1.3) * 3;
+        const bob = reduced || n.kind === "h" ? 0 : Math.sin(time * 0.8 + i * 1.3) * 3;
         const R = (n.R + bob) * s;
         const ang = n.ang + sway;
         n.x = cx + Math.cos(ang) * R;
@@ -213,29 +197,19 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
 
       for (let i = 0; i < 3; i += 1) {
         const target = hiRef.current === i ? 1 : 0;
-        hi[i] = reduced
-          ? target
-          : hi[i] + (target - hi[i]) * Math.min(1, dt * 5);
+        hi[i] = reduced ? target : hi[i] + (target - hi[i]) * Math.min(1, dt * 5);
       }
 
       hubGlow = Math.max(0, hubGlow - dt * 1.6);
       place();
 
-      // hand the glass layer what it needs to stay locked to the network
+      // the glass canvas reads these every frame
       const sh = shared.current;
       sh.w = w;
       sh.h = h;
       sh.s = s;
       sh.app = easeOut(appearT / 1.2);
       sh.hubGlow = hubGlow;
-      for (let i = 0; i < 3; i += 1) {
-        const f = sh.f[i];
-        f.x = nodes[i].x;
-        f.y = nodes[i].y;
-        f.a = nodes[i].a;
-        f.pulse = nodes[i].pulse;
-        sh.hi[i] = hi[i];
-      }
 
       if (!reduced && appearT > 1.7 && dt > 0) {
         EDGES.forEach((e, ei) => {
@@ -295,10 +269,7 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
       // Core glow behind the seal
       const pulse = reduced ? 0 : (Math.sin(time * 1.1) * 0.5 + 0.5) * 0.05;
       const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, 215 * s);
-      core.addColorStop(
-        0,
-        `rgba(255,32,82,${(0.2 + pulse + hubGlow * 0.25) * app})`,
-      );
+      core.addColorStop(0, `rgba(255,32,82,${(0.2 + pulse + hubGlow * 0.25) * app})`);
       core.addColorStop(1, "rgba(255,32,82,0)");
       ctx.fillStyle = core;
       ctx.fillRect(0, 0, w, h);
@@ -336,13 +307,7 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
         const lift = e.fi.reduce((m, f) => Math.max(m, hi[f]), 0);
         const rgb = FEATURES[e.fi[0]].rgb;
         const base =
-          e.kind === "hub"
-            ? 0.28
-            : e.kind === "out"
-              ? 0.16
-              : e.kind === "mid"
-                ? 0.12
-                : 0.08;
+          e.kind === "hub" ? 0.28 : e.kind === "out" ? 0.16 : e.kind === "mid" ? 0.12 : 0.08;
         const boost = e.kind === "hub" ? 0.65 : 0.45;
 
         ctx.save();
@@ -396,14 +361,7 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
       // Arrival flashes at the seal
       flashes.forEach((f) => {
         const k = f.age / 0.6;
-        const g = ctx.createRadialGradient(
-          f.x,
-          f.y,
-          0,
-          f.x,
-          f.y,
-          (10 + 30 * k) * s,
-        );
+        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, (10 + 30 * k) * s);
         g.addColorStop(0, `rgba(${f.rgb},${(1 - k) * 0.7})`);
         g.addColorStop(1, `rgba(${f.rgb},0)`);
         ctx.fillStyle = g;
@@ -444,16 +402,7 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
 
         const rgb = FEATURES[i].rgb;
         const f = hi[i];
-        const r = 10 * s * (0.6 + 0.4 * n.a);
-
-        const glow = ctx.createRadialGradient(
-          n.x,
-          n.y,
-          0,
-          n.x,
-          n.y,
-          (26 + 18 * f) * s,
-        );
+        const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, (26 + 18 * f) * s);
         glow.addColorStop(0, `rgba(${rgb},${(0.16 + 0.3 * f) * n.a})`);
         glow.addColorStop(1, `rgba(${rgb},0)`);
         ctx.fillStyle = glow;
@@ -461,37 +410,13 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
         ctx.arc(n.x, n.y, (26 + 18 * f) * s, 0, TAU);
         ctx.fill();
 
-        // with glass on, the puck itself is the node: ripples start at its rim
-        const glass = glassRef.current;
-
         if (f > 0.05 && !reduced) {
           const ph = (time * 0.7) % 1;
           ctx.strokeStyle = `rgba(${rgb},${(1 - ph) * 0.6 * f})`;
           ctx.lineWidth = 1.4 * s;
           ctx.beginPath();
-          ctx.arc(n.x, n.y, ((glass ? 27 : 10) + ph * 30) * s, 0, TAU);
+          ctx.arc(n.x, n.y, (24 + ph * 26) * s, 0, TAU);
           ctx.stroke();
-        }
-
-        if (!glass) {
-          ctx.strokeStyle = `rgba(${rgb},${(0.35 + 0.5 * f) * n.a})`;
-          ctx.lineWidth = 1.4 * s;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, (15 + n.pulse * 4) * s, 0, TAU);
-          ctx.stroke();
-
-          ctx.fillStyle = `rgba(10,11,17,${n.a})`;
-          ctx.strokeStyle = `rgba(${rgb},${0.9 * n.a})`;
-          ctx.lineWidth = 2 * s;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, r, 0, TAU);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.fillStyle = `rgba(${rgb},${(0.7 + 0.3 * f) * n.a})`;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, (3.5 + 2 * f + n.pulse * 2) * s, 0, TAU);
-          ctx.fill();
         }
 
         if (showLabels) {
@@ -502,16 +427,10 @@ function AgentField({ active, highlight, onPick, reduced, shared, glass }) {
           ctx.fillStyle = `rgba(${rgb},${(0.42 + 0.58 * f) * n.a})`;
 
           const text = FEATURES[i].name.toUpperCase();
-          if (i === 0) {
-            ctx.textAlign = "center";
-            ctx.fillText(text, n.x, n.y - (glass ? 42 : 27) * s);
-          } else if (i === 1) {
-            ctx.textAlign = "left";
-            ctx.fillText(text, n.x + (glass ? 39 : 22) * s, n.y + 2 * s);
-          } else {
-            ctx.textAlign = "right";
-            ctx.fillText(text, n.x - (glass ? 39 : 22) * s, n.y + 2 * s);
-          }
+          ctx.textAlign = "center";
+          // top agent: label above; side agents: label underneath, so it
+          // never runs off the edge of the stage
+          ctx.fillText(text, n.x, i === 0 ? n.y - 42 * s : n.y + 46 * s);
           ctx.restore();
         }
       });
@@ -637,11 +556,7 @@ const TICKS = Array.from({ length: 90 }, (_, i) => {
 
 function SealText() {
   return (
-    <svg
-      className="mm-seal mm-seal-text"
-      viewBox="0 0 300 300"
-      aria-hidden="true"
-    >
+    <svg className="mm-seal mm-seal-text" viewBox="0 0 300 300" aria-hidden="true">
       <defs>
         <path
           id="mm-seal-path"
@@ -659,11 +574,7 @@ function SealText() {
 
 function SealTicks() {
   return (
-    <svg
-      className="mm-seal mm-seal-ticks"
-      viewBox="0 0 300 300"
-      aria-hidden="true"
-    >
+    <svg className="mm-seal mm-seal-ticks" viewBox="0 0 300 300" aria-hidden="true">
       {TICKS.map((t, i) => (
         <line
           key={i}
@@ -679,15 +590,6 @@ function SealTicks() {
   );
 }
 
-function supportsWebGL() {
-  try {
-    const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") || c.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
-
 /* =========================================================
    SECTION
 ========================================================= */
@@ -699,23 +601,21 @@ export default function MiniMe() {
   const [cycle, setCycle] = useState(0);
   const [paused, setPaused] = useState(false);
 
+  // network state shared with the glass canvas
+  const shared = useRef({
+    w: 0,
+    h: 0,
+    s: 1,
+    f: [],
+    hi: [0, 0, 0],
+    app: 0,
+    hubGlow: 0,
+  });
+
   const reduced = useMemo(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
   );
-
-  const glass = useMemo(supportsWebGL, []);
-
-  // network -> glass: node positions, highlight amounts, hub glow
-  const shared = useRef({
-    w: 1,
-    h: 1,
-    s: 1,
-    app: 0,
-    hubGlow: 0,
-    hi: [0, 0, 0],
-    f: [0, 1, 2].map(() => ({ x: 0, y: 0, a: 0, pulse: 0 })),
-  });
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -737,10 +637,7 @@ export default function MiniMe() {
   useEffect(() => {
     if (!visible || paused || reduced) return undefined;
 
-    const id = setInterval(
-      () => setCycle((c) => (c + 1) % FEATURES.length),
-      3600,
-    );
+    const id = setInterval(() => setCycle((c) => (c + 1) % FEATURES.length), 3600);
     return () => clearInterval(id);
   }, [visible, paused, reduced]);
 
@@ -766,6 +663,8 @@ export default function MiniMe() {
 
   return (
     <section className="mm-section" id="mini-me" ref={sectionRef}>
+      <SectionStars />
+
       <div className={`mm-card${seen ? " is-in" : ""}`}>
         <div className="mm-copy">
           <div className="mm-chips">
@@ -807,11 +706,7 @@ export default function MiniMe() {
             ))}
           </ul>
 
-          <p
-            className="mm-note"
-            key={cycle}
-            style={{ "--rgb": current.rgb.join(",") }}
-          >
+          <p className="mm-note" key={cycle} style={{ "--rgb": current.rgb.join(",") }}>
             {current.detail}
           </p>
 
@@ -831,25 +726,18 @@ export default function MiniMe() {
               onPick={pick}
               reduced={reduced}
               shared={shared}
-              glass={glass}
             />
 
             <SealTicks />
             <SealText />
 
-            {glass ? (
-              <MiniMeGlass
-                shared={shared}
-                features={FEATURES}
-                active={visible}
-                reduced={reduced}
-                highlight={cycle}
-              />
-            ) : (
-              <div className="mm-tile">
-                <MiniMeLogo className="mm-logo" />
-              </div>
-            )}
+            <MiniMeGlass
+              shared={shared}
+              features={FEATURES}
+              active={visible}
+              reduced={reduced}
+              highlight={cycle}
+            />
           </div>
         </div>
       </div>

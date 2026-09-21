@@ -10,9 +10,14 @@ export const PATH_A =
 export const PATH_B =
   "M6322 4382 c-113 23 -230 12 -321 -33 c-79 -38 -189 -152 -228 -234 c-35 -74 -67 -171 -78 -236 l-7 -43 l503 0 l502 0 l-6 64 c-9 97 -63 248 -112 315 c-71 96 -142 143 -253 167 z m358 1918 c0 10 161 6 230 -5 c245 -39 428 -124 626 -290 c238 -201 387 -449 549 -919 c143 -415 238 -841 305 -1370 c20 -161 24 -445 6 -550 c-64 -391 -253 -683 -586 -905 c-230 -154 -526 -253 -854 -286 c-146 -14 -453 -7 -586 15 c-492 79 -920 361 -1147 757 c-194 338 -255 821 -158 1244 c130 568 541 933 1084 962 c460 24 841 -189 1039 -582 c125 -250 181 -533 169 -863 c-4 -89 -9 -167 -12 -172 c-4 -6 -314 -10 -830 -10 l-823 0 l15 -67 c36 -161 132 -320 250 -414 c181 -145 435 -221 738 -221 c160 -1 253 11 411 52 c185 48 359 150 458 271 c53 64 119 200 135 277 c25 120 9 355 -50 732 c-94 602 -339 1316 -624 1815 c-120 210 -185 312 -287 447 c-32 42 -58 79 -58 82 z";
 
+// viewBox of the mark, in px
 export const LOGO_VIEWBOX = { w: 1024, h: 844 };
 
-export default function MiniMeLogo({ className, color = "#FF2052", ...rest }) {
+export default function MiniMeLogo({
+  className,
+  color = "#FF2052",
+  ...rest
+}) {
   return (
     <svg
       viewBox="0 0 1024 844"
@@ -21,11 +26,7 @@ export default function MiniMeLogo({ className, color = "#FF2052", ...rest }) {
       aria-label="Mini Me logo"
       {...rest}
     >
-      <g
-        transform="translate(0,844) scale(0.1,-0.1)"
-        fill={color}
-        stroke="none"
-      >
+      <g transform="translate(0,844) scale(0.1,-0.1)" fill={color} stroke="none">
         <path d={PATH_A} />
         <path d={PATH_B} />
       </g>

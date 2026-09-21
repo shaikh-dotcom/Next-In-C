@@ -122,11 +122,7 @@ const SOCIALS = {
 ========================================================= */
 function Silhouette() {
   return (
-    <svg
-      className="fp-silhouette"
-      viewBox="0 0 200 260"
-      aria-hidden="true"
-    >
+    <svg className="fp-silhouette" viewBox="0 0 200 260" aria-hidden="true">
       <defs>
         <linearGradient id="fp-sil" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#f5d9df" stopOpacity="0.22" />
@@ -134,10 +130,7 @@ function Silhouette() {
         </linearGradient>
       </defs>
       <circle cx="100" cy="92" r="44" fill="url(#fp-sil)" />
-      <path
-        d="M20 260c0-70 40-96 80-96s80 26 80 96z"
-        fill="url(#fp-sil)"
-      />
+      <path d="M20 260c0-70 40-96 80-96s80 26 80 96z" fill="url(#fp-sil)" />
     </svg>
   );
 }
@@ -154,9 +147,7 @@ function Portrait({ founder }) {
   }
 
   return (
-    <div
-      className={`fp-portrait ${founder.cutout ? "is-cutout" : "is-rect"}`}
-    >
+    <div className={`fp-portrait ${founder.cutout ? "is-cutout" : "is-rect"}`}>
       <img
         className="fp-img fp-img-duo"
         src={founder.photo}
@@ -536,7 +527,10 @@ export default function Founders() {
     el.classList.add("is-pulse");
 
     clearTimeout(pulseTimer.current);
-    pulseTimer.current = setTimeout(() => el.classList.remove("is-pulse"), 1000);
+    pulseTimer.current = setTimeout(
+      () => el.classList.remove("is-pulse"),
+      1000,
+    );
   }, []);
 
   return (
@@ -554,11 +548,7 @@ export default function Founders() {
 
       <div className="fx-wrap">
         <header className="fx-head">
-          <h2
-            className="fx-title"
-            id="fx-title"
-            data-text="Meet the Founders"
-          >
+          <h2 className="fx-title" id="fx-title" data-text="Meet the Founders">
             <span className="fx-title-text">
               <ScrambleText text="Meet the Founders" />
             </span>
