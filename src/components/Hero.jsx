@@ -1,6 +1,5 @@
 import React from "react";
 import { Award, BadgeCheck, CircleCheck, FastForward } from "lucide-react";
-import HeroBackdrop from "./HeroBackdrop";
 import TechGlass from "./TechGlass";
 import {
   SolidityIcon,
@@ -77,7 +76,6 @@ export default function Hero() {
 
   return (
     <section className="hero">
-      <HeroBackdrop />
       <div className="hero-scrim" />
 
       <div className="hero-inner">
