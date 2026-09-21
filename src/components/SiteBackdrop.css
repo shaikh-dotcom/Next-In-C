@@ -15,7 +15,7 @@
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity 1.4s ease;
+  transition: opacity 0.8s ease;
 }
 
 .site-backdrop-layer canvas {

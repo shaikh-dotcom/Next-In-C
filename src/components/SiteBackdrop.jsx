@@ -17,7 +17,7 @@ import "./SiteBackdrop.css";
  */
 export default function SiteBackdrop({ heroRef }) {
   const { inView: heroInView } = useLazyCanvas(heroRef, {
-    rootMargin: "0px 0px -35% 0px",
+    rootMargin: "-60% 0px 0px 0px",
   });
 
   return (

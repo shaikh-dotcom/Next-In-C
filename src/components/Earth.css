@@ -141,14 +141,19 @@
 
 .earth-lede {
   margin-top: 14px;
-
   max-width: 420px;
-
   font-size: 14px;
-
   line-height: 1.7;
+  color: #ffffff;
 
-  color: #718592;
+  text-shadow:
+    1px 1px 0 #071018,
+    2px 2px 0 #071018,
+    3px 3px 0 #071018,
+    4px 4px 0 rgba(7, 16, 24, 0.9),
+    5px 5px 0 rgba(7, 16, 24, 0.75),
+    6px 6px 0 rgba(7, 16, 24, 0.55),
+    0 0 18px rgba(0, 0, 0, 0.45);
 }
 
 /* =========================================
