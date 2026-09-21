@@ -12,6 +12,7 @@ import { Activity, Eye, Network, Timer } from "lucide-react";
 import ScrambleText from "./ScrambleText";
 import SectionStars from "./SectionStars";
 import EarthStats from "./EarthStats";
+import useLazyCanvas from "./useLazyCanvas";
 import "./Earth.css";
 
 /*
@@ -79,6 +80,7 @@ export default function Earth() {
   const badgeRefs = useRef([]);
   const lineRefs = useRef([]);
   const rafRef = useRef(null);
+  const { near, epoch, onCreated, ready } = useLazyCanvas(wrapperRef, { id: "earth-globe", rootMargin: "300px 0px", priority: 50 });
 
   const [countries, setCountries] = useState({ features: [] });
   const [hoveredCountry, setHoveredCountry] = useState(null);
@@ -160,6 +162,7 @@ export default function Earth() {
    * product against the point's world position).
    */
   useEffect(() => {
+    if (!near) return undefined;
     const tick = () => {
       const gEl = globeRef.current;
 
@@ -207,7 +210,7 @@ export default function Earth() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [near]);
 
   return (
     <section className="earth-section">
@@ -232,8 +235,8 @@ export default function Earth() {
 
         {/* Globe column */}
         <div className="earth-globe-col">
-          <div className="earth-globe-wrapper" ref={wrapperRef}>
-            <Globe
+          <div className={`earth-globe-wrapper${ready ? " is-ready" : ""}`} ref={wrapperRef}>
+            {near && <Globe
               ref={globeRef}
               globeImageUrl="https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg"
               showAtmosphere={true}
@@ -299,7 +302,7 @@ export default function Earth() {
               enablePointerInteraction={true}
               width={dims.width}
               height={dims.height}
-            />
+            />}
 
             <svg
               className="earth-connector-svg"
