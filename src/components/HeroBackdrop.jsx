@@ -925,8 +925,8 @@ function Specks({ shared, count, sizeMin, sizeMax, bokeh }) {
 function Scene({ cfg, dim, hero, reduced, warm, containerRef }) {
   const shared = useMemo(() => {
     const common = {
-      uTime: { value: reduced || warm ? 14 : 0 },
-      uIntro: { value: reduced || warm ? 1 : 0 },
+      uTime: { value: 14 }, // was: reduced || warm ? 14 : 0
+      uIntro: { value: 1 },
       // ...unchanged below
       uPixelRatio: { value: 1 },
       uAspect: { value: 1.78 },
@@ -1065,6 +1065,7 @@ export default function HeroBackdrop({
   running = true,
 }) {
   const hostRef = useRef(null);
+  const apiRef = useRef(null);
 
   const ambient = variant === "ambient";
   const cfg = useMemo(
@@ -1084,11 +1085,39 @@ export default function HeroBackdrop({
   const handleCreated = useCallback(
     (state) => {
       onCreated(state);
+      apiRef.current = state;
       setReady(true);
-      state.invalidate(); // paint one frame even if we start paused
+      // Paint a real first frame SYNCHRONOUSLY — advance() works even when
+      // frameloop is "never", invalidate() does not (R3F v9).
+      try {
+        state.advance(performance.now());
+      } catch {
+        state.invalidate();
+      }
     },
     [onCreated],
   );
+
+  // Drive the loop imperatively — never rely on the frameloop prop alone.
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    if (reduced) {
+      api.setFrameloop("demand");
+      api.invalidate();
+    } else if (live) {
+      api.setFrameloop("always");
+      api.invalidate();
+    } else {
+      // Freeze on the last real frame instead of an empty black canvas.
+      api.setFrameloop("never");
+      try {
+        api.advance(performance.now());
+      } catch {
+        /* noop */
+      }
+    }
+  }, [live, ready, reduced]);
 
   return (
     <div
@@ -1100,6 +1129,7 @@ export default function HeroBackdrop({
         <Canvas
           key={epoch}
           onCreated={handleCreated}
+          frameloop="always" // actual mode is owned by the effect above
           dpr={ambient ? [1, 1.25] : [1, 1.5]}
           gl={{
             antialias: false,
@@ -1107,7 +1137,6 @@ export default function HeroBackdrop({
             powerPreference: "high-performance",
           }}
           camera={{ position: [0, 0, 32], fov: 50, near: 0.1, far: 200 }}
-          frameloop={reduced ? "demand" : live ? "always" : "never"}
         >
           <Scene
             cfg={cfg}
