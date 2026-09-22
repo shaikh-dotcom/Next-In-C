@@ -19,6 +19,27 @@ import ScrambleText from "./ScrambleText";
 import SectionStars from "./SectionStars";
 import "./BuildNext.css";
 
+/* ---------------------------------------------------------
+   MiniMe brand mark (the "M" glyph), embedded as inline SVG so
+   no separate asset file is needed. It's painted onto the app
+   icon canvas as a solid white silhouette (see paintApp). The
+   explicit width/height (matching the viewBox) are required —
+   without them some browsers can't size the SVG when it's used
+   as an <img> / canvas source, and it silently fails to draw.
+--------------------------------------------------------- */
+const MINIME_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="844" viewBox="0 0 1024 844"><g transform="translate(0,844) scale(0.1,-0.1)" fill="#FF2052" stroke="none"><path d="M3395 7019 c-69 -13 -229 -67 -290 -97 -111 -56 -224 -142 -341 -264 -115 -119 -182 -209 -298 -401 -586 -967 -915 -2135 -894 -3173 5 -237 16 -302 78 -468 99 -267 338 -506 613 -616 157 -62 223 -74 427 -74 157 -1 198 3 270 21 379 96 676 370 789 725 51 161 62 249 71 553 9 320 23 421 81 600 65 200 179 377 352 542 127 121 226 191 497 354 461 277 768 565 1079 1014 23 33 80 116 128 185 123 177 173 238 242 295 128 105 248 159 428 190 292 51 639 -33 930 -225 42 -28 80 -49 85 -48 30 10 -214 363 -366 528 -151 163 -274 255 -419 310 -118 46 -196 60 -340 60 -367 0 -682 -152 -930 -449 -116 -138 -134 -164 -325 -446 -82 -121 -188 -259 -221 -289 -21 -19 -21 -19 -47 5 -34 31 -107 130 -229 309 -220 324 -364 503 -495 613 -153 129 -339 217 -521 246 -77 13 -284 12 -354 0z m333 -720 c105 -51 201 -153 350 -371 180 -264 266 -386 325 -460 37 -48 67 -90 67 -95 0 -4 -94 -69 -208 -143 -261 -171 -394 -274 -547 -425 -278 -275 -441 -562 -524 -925 -53 -229 -71 -394 -71 -665 0 -203 -13 -282 -60 -383 -64 -136 -198 -215 -365 -216 -202 0 -347 104 -405 293 -35 112 -24 563 21 871 90 617 257 1158 527 1710 177 363 317 586 440 701 153 144 300 179 450 108z "/><path d="M6322 4382 c-113 23 -230 12 -321 -33 c-79 -38 -189 -152 -228 -234 c-35 -74 -67 -171 -78 -236 l-7 -43 l503 0 l502 0 l-6 64 c-9 97 -63 248 -112 315 c-71 96 -142 143 -253 167 z m358 1918 c0 10 161 6 230 -5 c245 -39 428 -124 626 -290 c238 -201 387 -449 549 -919 c143 -415 238 -841 305 -1370 c20 -161 24 -445 6 -550 c-64 -391 -253 -683 -586 -905 c-230 -154 -526 -253 -854 -286 c-146 -14 -453 -7 -586 15 c-492 79 -920 361 -1147 757 c-194 338 -255 821 -158 1244 c130 568 541 933 1084 962 c460 24 841 -189 1039 -582 c125 -250 181 -533 169 -863 c-4 -89 -9 -167 -12 -172 c-4 -6 -314 -10 -830 -10 l-823 0 l15 -67 c36 -161 132 -320 250 -414 c181 -145 435 -221 738 -221 c160 -1 253 11 411 52 c185 48 359 150 458 271 c53 64 119 200 135 277 c25 120 9 355 -50 732 c-94 602 -339 1316 -624 1815 c-120 210 -185 312 -287 447 c-32 42 -58 79 -58 82 z"/></g></svg>`;
+
+const MINIME_LOGO_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(MINIME_LOGO_SVG)}`;
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 /*
  * "Building what comes next."
  *
@@ -614,7 +635,7 @@ function paintWave(ctx, item, i) {
 }
 
 /* ---------- MiniMe app icon + wordmark ---------- */
-function paintApp(ctx, item) {
+function paintApp(ctx, item, i, logoImg) {
   const a = item.accent;
   screen(ctx, a, [0.5, 0.5]);
 
@@ -640,17 +661,46 @@ function paintApp(ctx, item) {
   rr(ctx, x, y, s, s, 58);
   ctx.fill();
 
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 30;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.beginPath();
-  ctx.moveTo(x + 62, y + 168);
-  ctx.lineTo(x + 62, y + 66);
-  ctx.lineTo(x + 115, y + 128);
-  ctx.lineTo(x + 168, y + 66);
-  ctx.lineTo(x + 168, y + 168);
-  ctx.stroke();
+  // Brand mark: the MiniMe "M" SVG, painted in as a solid white
+  // silhouette (source-in) so it reads the same against the
+  // coloured plate as the old hand-drawn glyph did. Falls back to
+  // the hand-drawn stroke if the image hasn't loaded for some reason.
+  if (logoImg) {
+    const lw = 124;
+    const lh = (lw * logoImg.height) / logoImg.width;
+    const cx = TEX / 2;
+    const cy = y + s / 2;
+    const lx = cx - lw / 2;
+    const ly = cy - lh / 2;
+
+    // Do the white-silhouette tint on an isolated offscreen canvas —
+    // it starts fully transparent, so source-in only keeps white where
+    // the glyph itself has alpha. Doing this directly on the main
+    // canvas fails: the plate/sheen already painted there are opaque,
+    // so source-in would fill the whole box white instead of just the M.
+    const logoCanvas = document.createElement("canvas");
+    logoCanvas.width = Math.ceil(lw);
+    logoCanvas.height = Math.ceil(lh);
+    const logoCtx = logoCanvas.getContext("2d");
+    logoCtx.drawImage(logoImg, 0, 0, lw, lh);
+    logoCtx.globalCompositeOperation = "source-in";
+    logoCtx.fillStyle = "#fff";
+    logoCtx.fillRect(0, 0, lw, lh);
+
+    ctx.drawImage(logoCanvas, lx, ly, lw, lh);
+  } else {
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 30;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(x + 62, y + 168);
+    ctx.lineTo(x + 62, y + 66);
+    ctx.lineTo(x + 115, y + 128);
+    ctx.lineTo(x + 168, y + 66);
+    ctx.lineTo(x + 168, y + 168);
+    ctx.stroke();
+  }
 
   ctx.fillStyle = "rgba(255,255,255,0.78)";
   ctx.font = `600 26px ${SANS}`;
@@ -711,7 +761,7 @@ const PAINTERS = {
   net: paintNet,
   topo: paintTopo,
   wave: paintWave,
-  app: paintApp,
+  app: (ctx, item, i, logoImg) => paintApp(ctx, item, i, logoImg),
   minime: paintMiniMe,
 };
 
@@ -877,19 +927,19 @@ function paintIcon(item, i) {
   return toTex(canvas);
 }
 
-function paintFace(kind, item, i) {
+function paintFace(kind, item, i, logoImg) {
   const [canvas, ctx] = mk();
-  PAINTERS[kind](ctx, item, i);
+  PAINTERS[kind](ctx, item, i, logoImg);
   return toTex(canvas);
 }
 
-function buildSet(item, i) {
+function buildSet(item, i, logoImg) {
   const [topCanvas, topCtx] = mk();
   paintTopBase(topCtx, item);
 
   return {
-    left: paintFace(item.left, item, i),
-    right: paintFace(item.right, item, i),
+    left: paintFace(item.left, item, i, logoImg),
+    right: paintFace(item.right, item, i, logoImg),
     top: toTex(topCanvas),
     icon: paintIcon(item, i),
   };
@@ -926,9 +976,14 @@ function useArtwork() {
         ]).catch(() => null)
       : Promise.resolve();
 
-    fonts.then(() => {
+    const logo = loadImage(MINIME_LOGO_SRC).catch((err) => {
+      console.warn("MiniMe logo failed to load:", err);
+      return null;
+    });
+
+    Promise.all([fonts, logo]).then(([, logoImg]) => {
       if (dead) return;
-      sets = PRODUCTS.map(buildSet);
+      sets = PRODUCTS.map((item, i) => buildSet(item, i, logoImg));
       pool = buildPool();
       setArt({ sets, pool });
     });
