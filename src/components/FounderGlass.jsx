@@ -36,7 +36,9 @@ function computeLayout(avail, count) {
   const cols = avail >= 760 ? Math.min(3, count) : 1;
   const raw = Math.floor((avail - GAP * (cols - 1)) / cols);
   const cardW =
-    cols === 1 ? Math.max(220, Math.min(raw, 420)) : Math.max(220, Math.min(raw, 380));
+    cols === 1
+      ? Math.max(220, Math.min(raw, 420))
+      : Math.max(220, Math.min(raw, 380));
   const cardH = Math.round(cardW * ASPECT);
   const rows = Math.ceil(count / cols);
 
@@ -256,20 +258,41 @@ function useFounderTextures(founders) {
 --------------------------------------------------------- */
 const clamp1 = (v) => Math.max(-1, Math.min(1, v));
 
-function Slab({ index, x, y, w, h, texture, accent, pointer, hovered, reduced }) {
+function Slab({
+  index,
+  x,
+  y,
+  w,
+  h,
+  texture,
+  accent,
+  pointer,
+  hovered,
+  reduced,
+}) {
   const tilt = useRef();
   const light = useRef();
   const state = useRef({ x: 0, y: 0, s: 1, li: 1.3 });
+  // Own accumulator, not clock.elapsedTime: elapsedTime keeps advancing
+  // in real time even while frameloop is "never" (paused off-screen), so
+  // reading it directly makes sin/cos jump to a random new phase the
+  // instant a paused canvas resumes — a visible pop on every scroll-in.
+  // Accumulating with a clamped delta means the wave just holds its
+  // phase while paused and resumes smoothly instead.
+  const clock = useRef(0);
 
-  useFrame(({ clock, gl }, delta) => {
+  useFrame(({ gl }, rawDelta) => {
     const node = tilt.current;
     if (!node) return;
+
+    const delta = Math.min(rawDelta, 1 / 30);
+    clock.current += delta;
 
     let tx = 0;
     let ty = 0;
 
     if (!reduced) {
-      const t = clock.elapsedTime;
+      const t = clock.current;
       tx = Math.sin(t * 0.5 + index * 1.4) * 0.032;
       ty = Math.cos(t * 0.4 + index * 0.8) * 0.05;
 
@@ -470,7 +493,10 @@ export function useFounderLayout(hostRef, count) {
     return () => observer.disconnect();
   }, [hostRef]);
 
-  return useMemo(() => (avail ? computeLayout(avail, count) : null), [avail, count]);
+  return useMemo(
+    () => (avail ? computeLayout(avail, count) : null),
+    [avail, count],
+  );
 }
 
 /* ---------------------------------------------------------
@@ -478,7 +504,13 @@ export function useFounderLayout(hostRef, count) {
    this absolutely behind its own DOM grid, using the same
    `layout` object for both.
 --------------------------------------------------------- */
-export default function FounderGlass({ founders, layout, active, hostRef, reduced }) {
+export default function FounderGlass({
+  founders,
+  layout,
+  active,
+  hostRef,
+  reduced,
+}) {
   const pointer = useRef({ x: 0, y: 0, has: false });
   const [onScreen, setOnScreen] = useState(false);
 
@@ -491,7 +523,11 @@ export default function FounderGlass({ founders, layout, active, hostRef, reduce
 
     const observer = new IntersectionObserver(
       ([entry]) => setOnScreen(entry.isIntersecting),
-      { rootMargin: "120px" },
+      // Large margin on purpose: this flips frameloop from "never" to
+      // "always" well before the section scrolls into the viewport, so
+      // shader/material warm-up happens off-screen instead of landing
+      // on the same frame the user actually sees it appear.
+      { rootMargin: "800px 0px" },
     );
 
     observer.observe(el);
@@ -532,6 +568,12 @@ export default function FounderGlass({ founders, layout, active, hostRef, reduce
         gl={{ alpha: true, antialias: true }}
         frameloop={onScreen ? (reduced ? "demand" : "always") : "never"}
         style={{ pointerEvents: "none" }}
+        onCreated={({ gl, scene, camera }) => {
+          // Force the (expensive) MeshTransmissionMaterial shaders to
+          // compile now, while the canvas is still off-screen, rather
+          // than on the first frame the user actually scrolls to.
+          gl.compile(scene, camera);
+        }}
       >
         {textures.length === founders.length && (
           <Scene

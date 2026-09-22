@@ -1266,6 +1266,7 @@ export default function HeroBackdrop({
   variant = "hero",
   className,
   running = true,
+  onReady,
 }) {
   const hostRef = useRef(null);
   const apiRef = useRef(null);
@@ -1297,8 +1298,12 @@ export default function HeroBackdrop({
       } catch {
         state.invalidate();
       }
+      // Tell whoever's watching (e.g. the page preloader) that shaders
+      // are compiled and a real frame is on screen, not just a promise
+      // that one is coming.
+      onReady?.();
     },
-    [onCreated],
+    [onCreated, onReady],
   );
 
   // Drive the loop imperatively — never rely on the frameloop prop alone.

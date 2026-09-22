@@ -1012,14 +1012,22 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
   const mats = useRef([]);
   const poolMat = useRef();
   const st = useRef({ wait: 0, appear: 0, hover: 0 });
+  // Own accumulator, not state.clock.elapsedTime: elapsedTime keeps
+  // advancing in real time even while frameloop is "never" (paused
+  // off-screen), so reading it directly makes the float/sway/color
+  // sin() jump to a random new phase the instant a paused canvas
+  // resumes — a visible pop on every scroll-in. Accumulating with a
+  // clamped delta means the wave holds its phase while paused instead.
+  const clock = useRef(0);
 
   useFrame((state, delta) => {
     const g = root.current;
     if (!g) return;
 
     const dt = Math.min(delta, 0.05);
+    clock.current += dt;
     const s = st.current;
-    const t = state.clock.elapsedTime;
+    const t = clock.current;
 
     // One orchestrated reveal: cubes pop in left to right, once.
     if (reduced) {
@@ -1353,7 +1361,11 @@ export default function BuildNext() {
 
     const observer = new IntersectionObserver(
       ([entry]) => setActive(entry.isIntersecting),
-      { rootMargin: "150px" },
+      // Large margin on purpose: this flips frameloop from "never" to
+      // "always" well before the section scrolls into the viewport, so
+      // shader warm-up and the MeshReflectorMaterial's first render
+      // target pass happen off-screen instead of on the reveal frame.
+      { rootMargin: "800px 0px" },
     );
 
     observer.observe(el);
@@ -1394,6 +1406,11 @@ export default function BuildNext() {
               camera={{ fov: FOV, position: [0, 8, 20], near: 0.1, far: 200 }}
               gl={{ alpha: true, antialias: true }}
               frameloop={active ? (reduced ? "demand" : "always") : "never"}
+              onCreated={({ gl, scene, camera }) => {
+                // Compile shaders now, while off-screen, rather than on
+                // the first frame the user actually scrolls to.
+                gl.compile(scene, camera);
+              }}
             >
               {art && (
                 <Scene

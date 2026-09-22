@@ -69,7 +69,8 @@ const FOUNDERS = [
     accent: "#3ff2c4",
     accent2: "#b6ffe9",
     bio: "Keeps the work shipping and the team pointed the same way. Placeholder bio: replace with two real sentences.",
-    owns: ["Operations", "Partnerships", "Delivery"],
+    owns: ["Architecture", "Agents", "Infrastructure"],
+
     links: { linkedin: "#", github: "#", x: "#" },
   },
   {
@@ -81,7 +82,7 @@ const FOUNDERS = [
     accent: "#4de3ff",
     accent2: "#9af2ff",
     bio: "Designs the agent architecture that Mini Me runs on. Placeholder bio: replace with two real sentences.",
-    owns: ["Architecture", "Agents", "Infrastructure"],
+    owns: ["Operations", "Partnerships", "Delivery"],
     links: { linkedin: "#", github: "#", x: "#" },
   },
 ];
