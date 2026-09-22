@@ -1,84 +1,92 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ArrowUpRight } from "lucide-react";
 import ScrambleText from "./ScrambleText";
 import SectionStars from "./SectionStars";
+import FounderGlass, {
+  FallbackPortrait,
+  GAP,
+  supportsWebGL,
+  useFounderLayout,
+} from "./FounderGlass";
 import "./Founders.css";
 
 /*
  * Founders + Contact.
  *
- * Three arched doorways stand in a row, each lit from above and named for
- * the part of the company that person leads. Hover (or tap, or Tab to)
- * an arch to light it up: its portrait warms into colour and the reading
- * dock underneath switches to that person. The dock's notch slides to sit
- * under whoever is selected.
+ * Three portrait-sized glass panels stand in a row, each one a slab
+ * of refractive WebGL glass (same rig as Build Next / the tech
+ * cards) lit in that founder's own colour. Hover (or focus, or tap)
+ * opens a panel's story; three threads run down from the panels and
+ * meet at the contact block.
  *
- * Everything you will want to edit lives in the block below: copy, links,
- * photo paths and how each photo is framed.
+ * Everything you will want to change later lives in the block below.
+ * All copy, links and photo paths are placeholders.
  *
- * Photos: put files in /public/founders/. Any aspect ratio works, the
- * portrait is cropped to fit. Use `focus` to choose which part of the photo
- * stays in frame and `zoom` to push in. A missing photo falls back to the
- * person's initials.
- *
- * All bios, chips and links are starting points. Replace them with the
- * real thing.
+ * Photos: drop files into /public/founders/. Until a photo lands (or
+ * if it 404s) the panel shows a bold monogram in that founder's own
+ * colours instead — never a broken image, never a duotone tint.
  */
 
 const INTRO =
-  "The three people behind Next Inc.: one sets the direction, one designs the systems, one keeps the work moving.";
+  "Three engineers who wanted better tools and ended up building a company around them.";
 
 const CONTACT = {
-  kicker: "Be a part of this family",
+  kicker: "Let's build something",
   title: "Ready to work with us?",
-  note: "Tell us what you are building and we will tell you how we can help.",
+  note: "Write to us and we reply within two working days.",
   label: "Get in touch",
-  // Swap for your contact page or a real address.
+  // Swap for the contact page later (for example "/contact").
   href: "mailto:hello@nextinc.com",
   email: "hello@nextinc.com",
+  locationsHref: "#locations",
 };
 
 const FOUNDERS = [
   {
     id: "arib-labib",
     name: "Arib Labib",
-    initials: "AL",
     role: "Founder & CEO",
-    domain: "Vision",
+    ghost: "CEO",
     photo: "/founders/arib-labib.jpg",
-    focus: "50% 30%", // which part of the photo stays in frame (x y)
-    zoom: 1, // 1 = fit, above 1 pushes in
-    bio: "Started Next Inc. and sets where it goes next: what we build, who we build it with, and why it matters.",
-    leads: ["Direction", "Strategy", "Product"],
+    accent: "#ff5f8f",
+    accent2: "#ffb04d",
+    bio: "Sets the direction for Mini Me and the company around it. Placeholder bio: replace with two real sentences.",
+    owns: ["Product vision", "Strategy", "Hiring"],
+    links: { linkedin: "#", github: "#", x: "#" },
+  },
+  {
+    id: "shaikh-mohammad",
+    name: "Shaikh Mohammad",
+    role: "Co-founder & CTO",
+    ghost: "CTO",
+    photo: "/founders/shaikh-mohammad.jpg",
+    accent: "#3ff2c4",
+    accent2: "#b6ffe9",
+    bio: "Keeps the work shipping and the team pointed the same way. Placeholder bio: replace with two real sentences.",
+    owns: ["Operations", "Partnerships", "Delivery"],
     links: { linkedin: "#", github: "#", x: "#" },
   },
   {
     id: "shuaib-islam",
     name: "Shuaib Islam",
-    initials: "SI",
-    role: "Co-founder & CTO",
-    domain: "Engineering",
-    photo: "/founders/shuaib-islam.jpg",
-    focus: "50% 32%",
-    zoom: 1.55,
-    bio: "Leads engineering at Next Inc., from the research behind our products to the systems that put them in people's hands.",
-    leads: ["Architecture", "Research", "Engineering"],
-    links: { linkedin: "#", github: "#", x: "#" },
-  },
-  {
-    id: "shaikh-muhammad",
-    name: "Shaikh Muhammad",
-    initials: "SM",
     role: "Co-founder & COO",
-    domain: "Operations",
-    photo: "/founders/shaikh-muhammad.jpg",
-    focus: "50% 30%",
-    zoom: 1,
-    bio: "Runs day-to-day operations at Next Inc.: delivery, partnerships, and the rhythm that keeps the team shipping.",
-    leads: ["Delivery", "Partnerships", "Operations"],
+    ghost: "COO",
+    photo: "/founders/shuaib-islam.jpg",
+    accent: "#4de3ff",
+    accent2: "#9af2ff",
+    bio: "Designs the agent architecture that Mini Me runs on. Placeholder bio: replace with two real sentences.",
+    owns: ["Architecture", "Agents", "Infrastructure"],
     links: { linkedin: "#", github: "#", x: "#" },
   },
 ];
+
+const THREAD_H = 96;
 
 /* =========================================================
    ICONS (inline, so nothing depends on the icon library's
@@ -115,223 +123,284 @@ const SOCIALS = {
 };
 
 /* =========================================================
-   PHOTO TREATMENT
-   Ink shadows, wine mid-tones, blush highlights. It is an SVG
-   filter, so the original files stay untouched and any photo
-   (light wall, busy background) ends up in the same world.
+   PANEL
+   The WebGL layer (rendered once, behind the whole grid) paints
+   the photo/monogram + the glass; this is the real DOM sitting on
+   top of it — ghost letters, the frosted name plate, and (for
+   browsers without WebGL) a plain fallback portrait.
 ========================================================= */
-function FilterDefs() {
-  return (
-    <svg className="fx-defs" width="0" height="0" aria-hidden="true">
-      <defs>
-        <filter id="fx-duo" colorInterpolationFilters="sRGB">
-          <feColorMatrix
-            type="matrix"
-            values="0.34 0.5 0.16 0 0.02  0.34 0.5 0.16 0 0.02  0.34 0.5 0.16 0 0.02  0 0 0 1 0"
-          />
-          <feComponentTransfer>
-            <feFuncR type="table" tableValues="0.02 0.52 0.94" />
-            <feFuncG type="table" tableValues="0.02 0.19 0.8" />
-            <feFuncB type="table" tableValues="0.05 0.28 0.83" />
-          </feComponentTransfer>
-        </filter>
-      </defs>
-    </svg>
-  );
-}
-
-/* Photo with an initials fallback if the file is missing */
-function Photo({ founder, className = "", eager = false }) {
-  const [missing, setMissing] = useState(false);
-
-  if (missing) {
-    return (
-      <span className={`fx-mono ${className}`} aria-hidden="true">
-        {founder.initials}
-      </span>
-    );
-  }
-
-  return (
-    <>
-      <img
-        className={`fx-img fx-img-duo ${className}`}
-        src={founder.photo}
-        alt=""
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
-        onError={() => setMissing(true)}
-      />
-      <img
-        className={`fx-img fx-img-color ${className}`}
-        src={founder.photo}
-        alt=""
-        aria-hidden="true"
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
-      />
-    </>
-  );
-}
-
-/* =========================================================
-   ARCH
-   back to front: base, crown glow, dots, lintel text, portrait,
-   vignette, lift, name plate, rim, travelling light, cursor light
-========================================================= */
-function Arch({ founder, index, active, select, colRef, reduced }) {
-  const on = active === index;
+function FounderPanel({
+  founder,
+  index,
+  count,
+  active,
+  setActive,
+  colRef,
+  down,
+  reduced,
+  webgl,
+}) {
+  const open = active === index;
+  const t = count > 1 ? index / (count - 1) : 0.5;
 
   const style = {
     "--i": index,
-    "--focus": founder.focus,
-    "--zoom": founder.zoom,
+    "--accent": founder.accent,
+    "--accent2": founder.accent2,
+    "--lx": `${Math.round(86 - t * 72)}%`,
+    "--ang": t < 0.34 ? "225deg" : t > 0.66 ? "135deg" : "180deg",
   };
+
+  const moreId = `fp-more-${founder.id}`;
 
   const onMove = (e) => {
     if (reduced || e.pointerType !== "mouse") return;
-
-    const el = e.currentTarget;
-    const r = el.getBoundingClientRect();
-    const nx = (e.clientX - r.left) / r.width;
-    const ny = (e.clientY - r.top) / r.height;
-
-    el.style.setProperty("--px", (nx * 2 - 1).toFixed(3));
-    el.style.setProperty("--py", (ny * 2 - 1).toFixed(3));
-    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
-    el.style.setProperty("--my", `${e.clientY - r.top}px`);
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
   };
 
   const onLeave = (e) => {
-    const el = e.currentTarget;
-    el.style.setProperty("--px", "0");
-    el.style.setProperty("--py", "0");
-    el.style.setProperty("--mx", "-400px");
-    el.style.setProperty("--my", "-400px");
+    e.currentTarget.style.setProperty("--mx", "-400px");
+    e.currentTarget.style.setProperty("--my", "-400px");
   };
 
-  const arcId = `fx-arc-${founder.id}`;
+  const onDown = (e) => {
+    down.current = { type: e.pointerType, wasActive: open };
+  };
+
+  // Touch and pen: tap opens, tap again closes. Mouse and keyboard use
+  // hover and focus instead.
+  const onClick = (e) => {
+    if (e.target.closest("a")) return;
+    const d = down.current;
+    if (d.type === "mouse" || d.type === "key") return;
+    setActive(d.wasActive ? -1 : index);
+  };
 
   return (
     <li
-      className={`fx-col${on ? " is-active" : ""}`}
+      className={`fx-col${open ? " is-active" : ""}`}
       style={style}
       ref={colRef}
-      data-index={index}
       onPointerEnter={(e) => {
-        if (e.pointerType === "mouse") select(index);
+        if (e.pointerType === "mouse") setActive(index);
       }}
     >
       <article
         className="fp"
         onPointerMove={onMove}
         onPointerLeave={onLeave}
-        onClick={() => select(index, true)}
+        onPointerDown={onDown}
+        onClick={onClick}
+        onFocus={() => setActive(index)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            setActive((cur) => (cur === index ? -1 : cur));
+          }
+        }}
+        onKeyDown={(e) => {
+          down.current = { type: "key", wasActive: open };
+          if (e.key === "Escape") setActive(-1);
+        }}
       >
-        <span className="fp-crown" aria-hidden="true" />
-        <span className="fp-dots" aria-hidden="true" />
+        <span className="fp-ghost" aria-hidden="true">
+          {founder.ghost}
+        </span>
 
-        {/* the word over the door, set on the curve of the arch */}
-        <svg className="fp-lintel" viewBox="0 0 400 210" aria-hidden="true">
-          <defs>
-            <path id={arcId} d="M 30 200 A 170 170 0 0 1 370 200" />
-          </defs>
-          <text>
-            <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">
-              {founder.domain}
-            </textPath>
-          </text>
-        </svg>
+        {!webgl && <FallbackPortrait founder={founder} />}
 
-        <div className="fp-photo">
-          <Photo founder={founder} eager={index === 0} />
-        </div>
-
-        <span className="fp-vignette" aria-hidden="true" />
-        <span className="fp-cone" aria-hidden="true" />
-        <span className="fp-inset" aria-hidden="true" />
         <span className="fp-lift" aria-hidden="true" />
+        <span className="fp-rim" aria-hidden="true" />
 
         <div className="fp-plate">
           <h3 className="fp-name">
             <button
               type="button"
               className="fp-toggle"
-              aria-pressed={on}
-              aria-controls="fx-dock"
-              onFocus={() => select(index)}
+              aria-expanded={open}
+              aria-controls={moreId}
             >
               {founder.name}
             </button>
           </h3>
           <p className="fp-role">{founder.role}</p>
-        </div>
 
-        <span className="fp-rim" aria-hidden="true" />
-        <span className="fp-beam" aria-hidden="true" />
-        <span className="fp-glint" aria-hidden="true" />
+          <div className="fp-more" id={moreId}>
+            <div className="fp-more-inner">
+              <p className="fp-bio">{founder.bio}</p>
+
+              <ul className="fp-chips">
+                {founder.owns.map((c) => (
+                  <li key={c} className="fp-chip">
+                    {c}
+                  </li>
+                ))}
+              </ul>
+
+              <ul className="fp-socials">
+                {Object.entries(founder.links).map(([key, href]) => {
+                  const s = SOCIALS[key];
+                  if (!s) return null;
+                  const { Icon } = s;
+                  return (
+                    <li key={key}>
+                      <a
+                        className="fp-social"
+                        href={href}
+                        aria-label={`${founder.name} on ${s.label}`}
+                      >
+                        <Icon />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </div>
       </article>
 
-      <span className="fp-foot" aria-hidden="true" />
+      <span className="fp-bead" aria-hidden="true" />
     </li>
   );
 }
 
 /* =========================================================
-   DOCK
-   The reading area under the arches. Its notch follows the
-   selected arch.
+   THREAD
+   Three lines drop from the panel beads and meet at the contact
+   block. Paths are re-measured from the real panel positions, so
+   they follow any layout change. Hovering a panel sends one light
+   packet down its line; on arrival the contact block glows once.
 ========================================================= */
-function Dock({ founder, index, changed }) {
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+function FounderThread({ count, colRefs, rowRef, active, reduced, onArrive }) {
+  const svgRef = useRef(null);
+  const pathRefs = useRef([]);
+  const hubRef = useRef(null);
+  const packetRef = useRef(null);
+
+  const layout = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const box = svg.getBoundingClientRect();
+    const cx = box.width / 2;
+
+    pathRefs.current.forEach((p, i) => {
+      const col = colRefs.current[i];
+      if (!p || !col) return;
+
+      const r = col.getBoundingClientRect();
+      const x = r.left - box.left + r.width / 2;
+
+      p.setAttribute(
+        "d",
+        `M ${x} 0 C ${x} ${THREAD_H * 0.55}, ${cx} ${THREAD_H * 0.4}, ${cx} ${THREAD_H}`,
+      );
+    });
+
+    const hub = hubRef.current;
+    if (hub) {
+      hub.setAttribute("cx", cx);
+      hub.setAttribute("cy", THREAD_H);
+    }
+  }, [colRefs]);
+
+  useEffect(() => {
+    layout();
+
+    const row = rowRef.current;
+    const observer = new ResizeObserver(layout);
+    if (row) observer.observe(row);
+    window.addEventListener("resize", layout);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", layout);
+    };
+  }, [layout, rowRef]);
+
+  // Keep the lines glued to the panels, and run the packet for the
+  // hovered panel.
+  useEffect(() => {
+    const packet = packetRef.current;
+    const path = active >= 0 ? pathRefs.current[active] : null;
+
+    const t0 = performance.now();
+    const settleUntil = t0 + (reduced ? 0 : 700);
+    let packetDone = reduced || !path;
+    let raf = 0;
+
+    const tick = (now) => {
+      layout();
+
+      if (!packetDone && path && packet) {
+        const p = clamp01((now - t0 - 150) / 1100);
+        const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        const pt = path.getPointAtLength(path.getTotalLength() * e);
+
+        packet.setAttribute("cx", pt.x);
+        packet.setAttribute("cy", pt.y);
+        packet.style.opacity = p > 0 ? 1 : 0;
+
+        if (p >= 1) {
+          packetDone = true;
+          packet.style.opacity = 0;
+          onArrive();
+        }
+      }
+
+      if (!packetDone || now < settleUntil) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      if (packet) packet.style.opacity = 0;
+    };
+  }, [active, reduced, layout, onArrive]);
+
   return (
-    <div
-      className="fx-dock"
-      id="fx-dock"
-      style={{ "--n": index }}
-      aria-live="polite"
+    <svg
+      className="fx-thread"
+      ref={svgRef}
+      height={THREAD_H}
+      aria-hidden="true"
+      focusable="false"
     >
-      <span className="fx-dock-notch" aria-hidden="true" />
+      <defs>
+        <linearGradient
+          id="fx-thread-grad"
+          gradientUnits="userSpaceOnUse"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2={THREAD_H}
+        >
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#7fb2ff" />
+        </linearGradient>
+      </defs>
 
-      <div
-        className={`fx-dock-body${changed ? " is-swap" : ""}`}
-        key={founder.id}
-      >
-        <div className="fx-dock-copy">
-          <h3 className="fx-dock-name">{founder.name}</h3>
-          <p className="fx-dock-role">{founder.role}</p>
-          <p className="fx-dock-bio">{founder.bio}</p>
-        </div>
+      {Array.from({ length: count }, (_, i) => (
+        <path
+          key={i}
+          ref={(el) => {
+            pathRefs.current[i] = el;
+          }}
+          pathLength="1"
+          className={`fx-thread-path${active === i ? " is-hot" : ""}`}
+        />
+      ))}
 
-        <div className="fx-dock-side">
-          <ul className="fx-chips" aria-label={`${founder.name} leads`}>
-            {founder.leads.map((c) => (
-              <li key={c} className="fx-chip">
-                {c}
-              </li>
-            ))}
-          </ul>
-
-          <ul className="fx-socials">
-            {Object.entries(founder.links).map(([key, href]) => {
-              const s = SOCIALS[key];
-              if (!s || !href) return null;
-              const { Icon } = s;
-              return (
-                <li key={key}>
-                  <a
-                    className="fx-social"
-                    href={href}
-                    aria-label={`${founder.name} on ${s.label}`}
-                  >
-                    <Icon />
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
-    </div>
+      <circle ref={hubRef} r="4" className="fx-thread-hub" />
+      <circle ref={packetRef} r="3" className="fx-thread-packet" />
+    </svg>
   );
 }
 
@@ -340,45 +409,24 @@ function Dock({ founder, index, changed }) {
 ========================================================= */
 export default function Founders() {
   const sectionRef = useRef(null);
+  const stageRef = useRef(null);
   const rowRef = useRef(null);
+  const contactRef = useRef(null);
   const colRefs = useRef([]);
-  const activeRef = useRef(0);
+  const down = useRef({ type: "mouse", wasActive: false });
+  const pulseTimer = useRef(0);
 
-  const [active, setActive] = useState(0);
-  const [changed, setChanged] = useState(false);
+  const [active, setActive] = useState(-1);
   const [seen, setSeen] = useState(false);
 
   const reduced = useMemo(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
   );
+  const webgl = useMemo(supportsWebGL, []);
+  const layout = useFounderLayout(stageRef, FOUNDERS.length);
 
-  // one place that changes the selection, so the dock only animates when
-  // the person actually changed
-  const choose = useCallback((i) => {
-    if (activeRef.current === i) return;
-    activeRef.current = i;
-    setActive(i);
-    setChanged(true);
-  }, []);
-
-  const select = useCallback(
-    (i, scroll = false) => {
-      choose(i);
-
-      // in the swipe layout, bring the chosen arch to the middle
-      if (scroll && window.matchMedia("(max-width: 999px)").matches) {
-        colRefs.current[i]?.scrollIntoView({
-          behavior: "smooth",
-          inline: "center",
-          block: "nearest",
-        });
-      }
-    },
-    [choose],
-  );
-
-  // "Lights on" once, when the stage is a third visible
+  // "Lights on" once, when the section is about a quarter visible
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return undefined;
@@ -387,50 +435,41 @@ export default function Founders() {
       ([entry]) => {
         if (entry.isIntersecting) setSeen(true);
       },
-      { threshold: 0.2 },
+      { threshold: 0.25 },
     );
 
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Swipe layout: whichever arch is mostly in view becomes the selected one
+  // Touch: tapping outside the row closes the open panel
   useEffect(() => {
-    const row = rowRef.current;
-    if (!row) return undefined;
-
-    const mq = window.matchMedia("(max-width: 999px)");
-    let io = null;
-
-    const setup = () => {
-      if (io) io.disconnect();
-      io = null;
-      if (!mq.matches) return;
-
-      io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting && e.intersectionRatio >= 0.6) {
-              choose(Number(e.target.dataset.index));
-            }
-          });
-        },
-        { root: row, threshold: [0.6] },
-      );
-
-      colRefs.current.forEach((el) => el && io.observe(el));
+    const onDoc = (e) => {
+      const row = rowRef.current;
+      if (row && !row.contains(e.target)) setActive(-1);
     };
 
-    setup();
-    mq.addEventListener("change", setup);
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
+  }, []);
 
-    return () => {
-      if (io) io.disconnect();
-      mq.removeEventListener("change", setup);
-    };
-  }, [choose]);
+  useEffect(() => () => clearTimeout(pulseTimer.current), []);
 
-  const current = FOUNDERS[active];
+  const pulse = useCallback(() => {
+    const el = contactRef.current;
+    if (!el) return;
+
+    el.classList.remove("is-pulse");
+    // restart the animation if it is already running
+    void el.offsetWidth;
+    el.classList.add("is-pulse");
+
+    clearTimeout(pulseTimer.current);
+    pulseTimer.current = setTimeout(
+      () => el.classList.remove("is-pulse"),
+      1000,
+    );
+  }, []);
 
   return (
     <section
@@ -439,8 +478,6 @@ export default function Founders() {
       ref={sectionRef}
       aria-labelledby="fx-title"
     >
-      <FilterDefs />
-
       <div className="fx-stars" aria-hidden="true">
         <SectionStars />
       </div>
@@ -456,46 +493,73 @@ export default function Founders() {
           <p className="fx-intro">{INTRO}</p>
         </header>
 
-        <div className="fx-stage">
-          <div className="fx-halo" aria-hidden="true" />
+        <div className="fx-stage" ref={stageRef}>
+          <div className="fx-beam" aria-hidden="true" />
+          <div className="fx-lamp" aria-hidden="true" />
 
-          <ul className="fx-row" ref={rowRef}>
+          {layout && (
+            <FounderGlass
+              founders={FOUNDERS}
+              layout={layout}
+              active={active}
+              hostRef={stageRef}
+              reduced={reduced}
+            />
+          )}
+
+          <ul
+            className="fx-row"
+            ref={rowRef}
+            style={
+              layout
+                ? {
+                    width: layout.gridW,
+                    gridTemplateColumns: `repeat(${layout.cols}, ${layout.cardW}px)`,
+                    gap: GAP,
+                  }
+                : undefined
+            }
+            onPointerLeave={(e) => {
+              if (e.pointerType === "mouse") setActive(-1);
+            }}
+          >
             {FOUNDERS.map((f, i) => (
-              <Arch
+              <FounderPanel
                 key={f.id}
                 founder={f}
                 index={i}
+                count={FOUNDERS.length}
                 active={active}
-                select={select}
+                setActive={setActive}
                 colRef={(el) => {
                   colRefs.current[i] = el;
                 }}
+                down={down}
                 reduced={reduced}
+                webgl={webgl}
               />
             ))}
           </ul>
 
-          <Dock founder={current} index={active} changed={changed} />
+          <div className="fx-floor" aria-hidden="true" />
         </div>
 
-        <div className="fx-contact" id="contact">
+        <FounderThread
+          count={FOUNDERS.length}
+          colRefs={colRefs}
+          rowRef={rowRef}
+          active={active}
+          reduced={reduced}
+          onArrive={pulse}
+        />
+        <div className="fx-stem" aria-hidden="true" />
+
+        <div className="fx-contact" id="contact" ref={contactRef}>
           <span className="fx-contact-dots" aria-hidden="true" />
+          <span className="fx-contact-glow" aria-hidden="true" />
 
           <div className="fx-contact-copy">
-            <div className="fx-family">
-              <ul className="fx-faces" aria-hidden="true">
-                {FOUNDERS.map((f) => (
-                  <li
-                    key={f.id}
-                    className="fx-face"
-                    style={{ "--focus": f.focus, "--zoom": f.zoom }}
-                  >
-                    <Photo founder={f} />
-                  </li>
-                ))}
-              </ul>
-              <p className="fx-contact-kicker">{CONTACT.kicker}</p>
-            </div>
+            <p className="fx-contact-kicker">{CONTACT.kicker}</p>
 
             <h2 className="fx-contact-title" data-text={CONTACT.title}>
               <span className="fx-title-text">
@@ -512,9 +576,10 @@ export default function Founders() {
               <ArrowUpRight aria-hidden="true" />
             </a>
 
-            <a className="fx-contact-mail" href={`mailto:${CONTACT.email}`}>
-              {CONTACT.email}
-            </a>
+            <div className="fx-contact-links">
+              <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
+              <a href={CONTACT.locationsHref}>Locations</a>
+            </div>
           </div>
         </div>
       </div>

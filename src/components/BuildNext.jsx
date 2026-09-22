@@ -170,7 +170,8 @@ const TEX = 512;
 const TAU = Math.PI * 2;
 const PAD = 26;
 
-const MONO = '"JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace';
+const MONO =
+  '"JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace';
 const SANS = 'Inter, "Segoe UI", system-ui, sans-serif';
 const DISPLAY = 'Syne, Inter, "Segoe UI", sans-serif';
 
@@ -591,7 +592,10 @@ function paintWave(ctx, item, i) {
     const env = Math.pow(Math.sin((Math.PI * k) / (N - 1)), 0.8);
     const h =
       (26 +
-        118 * Math.abs(Math.sin(k * 0.55) * Math.sin(k * 0.21 + 1.3) + 0.35 * r())) *
+        118 *
+          Math.abs(
+            Math.sin(k * 0.55) * Math.sin(k * 0.21 + 1.3) + 0.35 * r(),
+          )) *
       (0.35 + 0.65 * env);
 
     ctx.fillStyle = mix(a, item.accent2, k / (N - 1));
@@ -986,7 +990,9 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
     g.scale.setScalar(Math.max(0.001, e) * (1 + s.hover * 0.05));
 
     const b =
-      0.92 + s.hover * 0.45 + (reduced ? 0 : Math.sin(t * 2.2 + index * 2) * 0.04);
+      0.92 +
+      s.hover * 0.45 +
+      (reduced ? 0 : Math.sin(t * 2.2 + index * 2) * 0.04);
     mats.current.forEach((m) => m && m.color.setScalar(b));
 
     if (poolMat.current) poolMat.current.opacity = (0.5 + s.hover * 0.5) * p;
@@ -1009,16 +1015,36 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
         <mesh geometry={BOX} material={BODY_MAT} scale={CUBE} />
 
         {BARS.map((b, k) => (
-          <mesh key={k} geometry={BOX} material={FRAME_MAT} position={b.p} scale={b.s} />
+          <mesh
+            key={k}
+            geometry={BOX}
+            material={FRAME_MAT}
+            position={b.p}
+            scale={b.s}
+          />
         ))}
 
         {CORNERS.map((p, k) => (
-          <mesh key={k} geometry={BOX} material={FRAME_MAT} position={p} scale={0.11} />
+          <mesh
+            key={k}
+            geometry={BOX}
+            material={FRAME_MAT}
+            position={p}
+            scale={0.11}
+          />
         ))}
 
         {/* Face toward the right of the screen (+Z) */}
-        <mesh geometry={PLANE} position={[0, 0, HALF + 0.004]} scale={[SCREEN, SCREEN, 1]}>
-          <meshBasicMaterial ref={setMat(0)} map={tex.right} toneMapped={false} />
+        <mesh
+          geometry={PLANE}
+          position={[0, 0, HALF + 0.004]}
+          scale={[SCREEN, SCREEN, 1]}
+        >
+          <meshBasicMaterial
+            ref={setMat(0)}
+            map={tex.right}
+            toneMapped={false}
+          />
         </mesh>
 
         {/* Face toward the left of the screen (-X) */}
@@ -1028,7 +1054,11 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
           rotation={[0, -Math.PI / 2, 0]}
           scale={[SCREEN, SCREEN, 1]}
         >
-          <meshBasicMaterial ref={setMat(1)} map={tex.left} toneMapped={false} />
+          <meshBasicMaterial
+            ref={setMat(1)}
+            map={tex.left}
+            toneMapped={false}
+          />
         </mesh>
 
         {/* Top face */}
@@ -1057,7 +1087,11 @@ function Cube({ item, tex, pool, index, position, hovered, onHover, reduced }) {
           rotation={[-Math.PI / 2, 0, 0]}
           scale={[0.9, 0.9, 1]}
         >
-          <meshBasicMaterial ref={setMat(3)} map={tex.icon} toneMapped={false} />
+          <meshBasicMaterial
+            ref={setMat(3)}
+            map={tex.icon}
+            toneMapped={false}
+          />
         </mesh>
       </group>
 
@@ -1290,8 +1324,6 @@ export default function BuildNext() {
       <SectionStars />
 
       <div className="bn-head">
-        <div className="bn-eyebrow">// FROM IDEAS TO IMPACT</div>
-
         <h2 className="bn-heading" data-text={HEADING}>
           <span className="bn-heading-text">
             <ScrambleText text={HEADING} />

@@ -5,7 +5,6 @@
 .earth-section {
   position: relative;
 
-  min-height: 850px;
   width: 100%;
 
   overflow: hidden;
@@ -15,7 +14,7 @@
 
   color: #e9faff;
 
-  padding: 90px 5vw 90px;
+  padding: 50px 5vw 50px;
 
   isolation: isolate;
 }

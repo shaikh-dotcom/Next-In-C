@@ -54,7 +54,7 @@ const CORE_DIM = 1;
 const KNOT_SCALE = 3.0; // world units; silhouette is ~3.7x this wide (half)
 const KNOT_TUBE = 0.66; // tube radius, in KNOT_SCALE units (max ~0.83)
 const KNOT_Z = 1.25; // how far the tube weaves in and out of the plane
-const KNOT_SPIN = 0.05; // rad / sec, in-plane spin
+const KNOT_SPIN = 0.5; // rad / sec, in-plane spin
 const KNOT_PULSE_SPEED = 0.07; // laps / sec of the travelling light
 
 // Where the streams pinch into the knot (world x, each side)
